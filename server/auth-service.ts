@@ -160,6 +160,20 @@ export class AuthService {
     };
   }
 
+  static async verify2FACode(userId: number, code: string): Promise<boolean> {
+    const user = await this.findUserById(userId);
+    if (!user || !user.twoFactorSecret) return false;
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: code,
+      window: 1
+    });
+
+    return verified;
+  }
+
   static async verify2FASetup(userId: number, code: string): Promise<boolean> {
     const user = await this.findUserById(userId);
     if (!user || !user.twoFactorSecret) return false;

@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -48,6 +49,8 @@ export default function SettingsPage() {
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
   const [twoFactorQRCodeUrl, setTwoFactorQRCodeUrl] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFactorStep, setTwoFactorStep] = useState<'setup' | 'verify'>('setup');
   const [clearExistingData, setClearExistingData] = useState(false);
   
   // User setup states
@@ -104,30 +107,61 @@ export default function SettingsPage() {
     onSuccess: (data: Setup2FAResponse) => {
       setTwoFactorSecret(data.secret);
       setTwoFactorQRCodeUrl(data.qrCodeUrl);
+      setTwoFactorStep('setup');
+      setShow2FAModal(true);
+    },
+  });
+
+  // Verify 2FA code (test before enabling)
+  const verify2FAMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest("POST", "/api/settings/2fa/verify", { 
+        code, 
+        secret: twoFactorSecret 
+      });
+      return response;
+    },
+    onSuccess: () => {
+      setTwoFactorStep('verify');
       toast({
-        title: "2FA Setup",
-        description: "Scan the QR code with your authenticator app.",
+        title: "Code Verified",
+        description: "Your authenticator is working correctly. Click Enable 2FA to complete setup.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verification Failed",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
 
-  // Enable 2FA
+  // Enable 2FA (final step)
   const enable2FAMutation = useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async () => {
       await apiRequest("POST", "/api/settings/2fa/enable", { 
-        code, 
         secret: twoFactorSecret 
       });
     },
     onSuccess: () => {
       toast({
         title: "2FA Enabled",
-        description: "Two-factor authentication has been enabled.",
+        description: "Two-factor authentication has been enabled successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/settings/security"] });
       setTwoFactorCode("");
       setTwoFactorSecret("");
       setTwoFactorQRCodeUrl("");
+      setShow2FAModal(false);
+      setTwoFactorStep('setup');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "2FA Enable Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -457,7 +491,7 @@ export default function SettingsPage() {
     await setup2FAMutation.mutateAsync();
   };
 
-  const handleEnable2FA = async () => {
+  const handleVerify2FA = async () => {
     if (!twoFactorCode || twoFactorCode.length !== 6) {
       toast({
         title: "Invalid Code",
@@ -466,7 +500,19 @@ export default function SettingsPage() {
       });
       return;
     }
-    await enable2FAMutation.mutateAsync(twoFactorCode);
+    verify2FAMutation.mutate(twoFactorCode);
+  };
+
+  const handleEnable2FA = async () => {
+    await enable2FAMutation.mutateAsync();
+  };
+
+  const handleClose2FAModal = () => {
+    setShow2FAModal(false);
+    setTwoFactorStep('setup');
+    setTwoFactorCode("");
+    setTwoFactorSecret("");
+    setTwoFactorQRCodeUrl("");
   };
 
   if (isLoading) {
@@ -791,58 +837,14 @@ export default function SettingsPage() {
             <Separator />
 
             {!settings?.twoFactorEnabled ? (
-              <div className="space-y-4">
-                {!twoFactorSecret ? (
-                  <Button 
-                    onClick={handleSetup2FA}
-                    disabled={setup2FAMutation.isPending}
-                    className="w-full"
-                  >
-                    <Key className="mr-2 h-4 w-4" />
-                    {setup2FAMutation.isPending ? "Setting up..." : "Setup Two-Factor Authentication"}
-                  </Button>
-                ) : (
-                  <div className="space-y-4">
-                    <Alert>
-                      <Smartphone className="h-4 w-4" />
-                      <AlertDescription>
-                        Scan the QR code with your authenticator app, then enter the verification code below.
-                      </AlertDescription>
-                    </Alert>
-                    
-                    <div className="space-y-4">
-                      <QRCodeComponent 
-                        value={twoFactorQRCodeUrl || ""} 
-                        size={200}
-                        className="p-4 bg-muted rounded-lg"
-                      />
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Manual entry key:</p>
-                        <p className="font-mono text-xs bg-muted p-2 rounded break-all">{twoFactorSecret}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="twoFactorCode">Verification Code</Label>
-                      <Input
-                        id="twoFactorCode"
-                        value={twoFactorCode}
-                        onChange={(e) => setTwoFactorCode(e.target.value)}
-                        placeholder="Enter 6-digit code"
-                        maxLength={6}
-                      />
-                    </div>
-
-                    <Button 
-                      onClick={handleEnable2FA}
-                      disabled={enable2FAMutation.isPending || twoFactorCode.length !== 6}
-                      className="w-full"
-                    >
-                      {enable2FAMutation.isPending ? "Verifying..." : "Enable 2FA"}
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <Button 
+                onClick={handleSetup2FA}
+                disabled={setup2FAMutation.isPending}
+                className="w-full"
+              >
+                <Key className="mr-2 h-4 w-4" />
+                {setup2FAMutation.isPending ? "Setting up..." : "Setup Two-Factor Authentication"}
+              </Button>
             ) : (
               <div className="space-y-4">
                 <Alert>
@@ -991,6 +993,103 @@ export default function SettingsPage() {
           </Alert>
         </CardContent>
       </Card>
+
+      {/* 2FA Setup Modal */}
+      <Dialog open={show2FAModal} onOpenChange={setShow2FAModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Smartphone className="h-5 w-5" />
+              <span>Setup Two-Factor Authentication</span>
+            </DialogTitle>
+            <DialogDescription>
+              {twoFactorStep === 'setup' 
+                ? "Scan the QR code with your authenticator app to get started."
+                : "Verify your authenticator app is working correctly."
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {twoFactorStep === 'setup' ? (
+            <div className="space-y-4">
+              <Alert>
+                <Smartphone className="h-4 w-4" />
+                <AlertDescription>
+                  Scan this QR code with your authenticator app (like Google Authenticator, Authy, or 1Password).
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-4">
+                {twoFactorQRCodeUrl && (
+                  <QRCodeComponent 
+                    value={twoFactorQRCodeUrl} 
+                    size={200}
+                    className="flex justify-center p-4 bg-muted rounded-lg"
+                  />
+                )}
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">Manual entry key:</p>
+                  <p className="font-mono text-xs bg-muted p-2 rounded break-all">{twoFactorSecret}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="modalTwoFactorCode">Enter code from your authenticator app</Label>
+                <Input
+                  id="modalTwoFactorCode"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={handleClose2FAModal}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleVerify2FA}
+                  disabled={verify2FAMutation.isPending || twoFactorCode.length !== 6}
+                  className="flex-1"
+                >
+                  {verify2FAMutation.isPending ? "Verifying..." : "Test Code"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  Great! Your authenticator app is working correctly. Click "Enable 2FA" to complete the setup.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={handleClose2FAModal}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleEnable2FA}
+                  disabled={enable2FAMutation.isPending}
+                  className="flex-1"
+                >
+                  {enable2FAMutation.isPending ? "Enabling..." : "Enable 2FA"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

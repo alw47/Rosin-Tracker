@@ -10,6 +10,7 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import crypto from "crypto";
 
 // Session configuration
 const MemoryStoreSession = MemoryStore(session);
@@ -450,9 +451,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enable 2FA Route using AuthService
-  app.post("/api/settings/2fa/enable", async (req: any, res) => {
-    const { code } = req.body;
+  // Verify 2FA Code Route (test without enabling)
+  app.post("/api/settings/2fa/verify", async (req: any, res) => {
+    const { code, secret } = req.body;
 
     if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -463,10 +464,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const verified = await AuthService.verify2FASetup(req.session.userId, code);
+      const verified = await AuthService.verify2FACode(req.session.userId, code);
       if (!verified) {
         return res.status(401).json({ message: "Invalid verification code" });
       }
+
+      res.json({ success: true, message: "Code verified successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify code" });
+    }
+  });
+
+  // Enable 2FA Route using AuthService
+  app.post("/api/settings/2fa/enable", async (req: any, res) => {
+    const { secret } = req.body;
+
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      // Enable 2FA using the temporary secret that was already verified
+      await db.update(users).set({
+        twoFactorEnabled: true,
+        backupCodes: Array.from({ length: 8 }, () => 
+          crypto.randomBytes(4).toString('hex').toUpperCase()
+        )
+      }).where(eq(users.id, req.session.userId));
 
       res.json({ success: true, message: "Two-factor authentication enabled" });
     } catch (error) {
