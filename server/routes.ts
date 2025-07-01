@@ -118,8 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authenticated: true, 
         user: { 
           id: user.id, 
-          email: user.email, 
-          username: user.username,
+          email: user.email,
           twoFactorEnabled: user.twoFactorEnabled 
         } 
       });
@@ -133,14 +132,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Authentication is not enabled" });
     }
     
-    const { emailOrUsername, password, twoFactorCode } = req.body;
+    const { email, password, twoFactorCode } = req.body;
     
-    if (!emailOrUsername || !password) {
-      return res.status(400).json({ message: "Email/username and password are required" });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
     }
     
     try {
-      const user = await AuthService.findUserByEmailOrUsername(emailOrUsername);
+      const user = await AuthService.findUserByEmail(email);
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -223,7 +222,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentUser: currentUser ? {
           id: currentUser.id,
           email: currentUser.email,
-          username: currentUser.username,
           isEmailVerified: currentUser.isEmailVerified
         } : null
       });
@@ -242,18 +240,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Password must be at least 8 characters long" });
         }
         
-        if (!email || !username) {
-          return res.status(400).json({ message: "Email and username are required" });
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
         }
         
         // Check if users already exist
-        const existingUser = await AuthService.findUserByEmailOrUsername(email);
+        const existingUser = await AuthService.findUserByEmail(email);
         if (existingUser) {
-          return res.status(400).json({ message: "User with this email or username already exists" });
+          return res.status(400).json({ message: "User with this email already exists" });
         }
         
         // Create the admin user
-        const user = await AuthService.createUser(email, username, password);
+        const user = await AuthService.createUser(email, password);
         // Authentication is controlled by AUTH_PASSWORD environment variable
         
         res.json({ success: true, message: "Authentication enabled and admin user created" });
@@ -294,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Authentication is not enabled. Set AUTH_PASSWORD environment variable first." });
     }
 
-    const { email, username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
       // Check if any users already exist
@@ -303,8 +301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Users already exist. Use the change password feature instead." });
       }
 
-      if (!email || !username || !password) {
-        return res.status(400).json({ message: "Email, username, and password are required" });
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
       }
 
       if (password.length < 8) {
@@ -312,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create the first user
-      const user = await AuthService.createUser(email, username, password);
+      const user = await AuthService.createUser(email, password);
       
       // Set up session for the newly created user
       req.session.userId = user.id;
@@ -322,8 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Initial user account created successfully",
         user: {
           id: user.id,
-          email: user.email,
-          username: user.username
+          email: user.email
         }
       });
     } catch (error: any) {

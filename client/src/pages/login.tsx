@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Lock, Mail, User } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import logoImage from "@assets/Rosin Logger Logo Cropped transparent_1751361491826.png";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 
 export default function Login() {
-  const [emailOrUsername, setEmailOrUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,15 +22,13 @@ export default function Login() {
   const { toast } = useToast();
 
   // Account creation form states
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailOrUsername.trim() || !password.trim()) {
-      setError("Email/username and password are required");
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required");
       return;
     }
 
@@ -38,7 +36,7 @@ export default function Login() {
     setError("");
 
     try {
-      await login(emailOrUsername, password, twoFactorCode || undefined);
+      await login(email, password, twoFactorCode || undefined);
       toast({
         title: "Welcome back!",
         description: "You've been successfully logged in.",
@@ -57,8 +55,8 @@ export default function Login() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !username.trim() || !password.trim()) {
-      setError("All fields are required");
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required");
       return;
     }
 
@@ -71,9 +69,8 @@ export default function Login() {
     setError("");
 
     try {
-      await apiRequest("/api/auth/setup", "POST", {
+      await apiRequest("POST", "/api/auth/setup", {
         email,
-        username,
         password,
       });
       
@@ -129,21 +126,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Choose a username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="pl-10"
-                    disabled={isCreating}
-                  />
-                </div>
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -219,15 +202,15 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="emailOrUsername">Email or Username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="emailOrUsername"
-                  type="text"
-                  placeholder="Enter your email or username"
-                  value={emailOrUsername}
-                  onChange={(e) => setEmailOrUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   disabled={isLoading}
                 />

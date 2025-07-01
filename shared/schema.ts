@@ -118,7 +118,6 @@ export type CuringReminder = typeof curingReminders.$inferSelect;
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   isEmailVerified: boolean("is_email_verified").default(false),
   emailVerificationToken: text("email_verification_token"),
@@ -156,21 +155,19 @@ export const userSessions = pgTable("user_sessions", {
 
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
-  username: true,
   passwordHash: true,
 }).extend({
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
 });
 
 export const loginUserSchema = z.object({
-  emailOrUsername: z.string().min(1, "Email or username is required"),
+  email: z.string().email("Valid email is required"),
   password: z.string().min(1, "Password is required"),
   twoFactorCode: z.string().optional(),
 });
 
 export const registerUserSchema = z.object({
   email: z.string().email("Valid email is required"),
-  username: z.string().min(3, "Username must be at least 3 characters").max(30),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {

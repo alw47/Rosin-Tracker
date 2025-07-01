@@ -55,14 +55,13 @@ export class AuthService {
   }
 
   // User management
-  static async createUser(email: string, username: string, password: string): Promise<User> {
+  static async createUser(email: string, password: string): Promise<User> {
     const passwordHash = await this.hashPassword(password);
     const emailVerificationToken = this.generateSecureToken();
     const emailVerificationExpiry = new Date(Date.now() + TOKEN_EXPIRY);
 
     const [user] = await db.insert(users).values({
       email,
-      username,
       passwordHash,
       emailVerificationToken,
       emailVerificationExpiry,
@@ -74,24 +73,14 @@ export class AuthService {
     return user;
   }
 
-  static async findUserByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
+  static async findUserByEmail(email: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(users)
-      .where(
-        eq(users.email, emailOrUsername)
-      )
+      .where(eq(users.email, email))
       .limit(1);
 
-    if (user) return user;
-
-    const [userByUsername] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, emailOrUsername))
-      .limit(1);
-
-    return userByUsername || null;
+    return user || null;
   }
 
   static async findUserById(id: number): Promise<User | null> {
@@ -320,11 +309,6 @@ export class AuthService {
   // Check if email/username is available
   static async isEmailAvailable(email: string): Promise<boolean> {
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return !user;
-  }
-
-  static async isUsernameAvailable(username: string): Promise<boolean> {
-    const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
     return !user;
   }
 }
