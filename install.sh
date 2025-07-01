@@ -233,13 +233,16 @@ if [ "$FRESH_INSTALL" = true ]; then
         read -s DB_PASSWORD_INPUT
         echo ""
         
-        # Check if password is empty (check length directly)
-        if [ ${#DB_PASSWORD_INPUT} -eq 0 ]; then
+        # Strip any whitespace and check if truly empty
+        DB_PASSWORD_CLEAN=$(echo "$DB_PASSWORD_INPUT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        if [ -z "$DB_PASSWORD_CLEAN" ]; then
+            # Empty password - auto-generate
             DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
             print_success "Auto-generated secure password"
             break
         else
-            # Confirm password
+            # Non-empty password - ask for confirmation
             echo -n "Confirm database password: "
             read -s DB_PASSWORD_CONFIRM
             echo ""
@@ -264,28 +267,28 @@ if [ "$FRESH_INSTALL" = true ]; then
         echo -n "Enable authentication for secure login? (y/N): "
         read -r AUTH_CHOICE
         
-        # Handle empty input (Enter key) as default No
-        case "${AUTH_CHOICE}" in
-            "")
-                AUTH_PASSWORD=""
-                print_success "Authentication disabled - application runs without login"
-                break
-                ;;
-            [Yy]|[Yy][Ee][Ss])
-                AUTH_PASSWORD="YES"
-                print_success "Authentication enabled - users will need to log in"
-                print_status "You'll be able to create user accounts after installation"
-                break
-                ;;
-            [Nn]|[Nn][Oo])
-                AUTH_PASSWORD=""
-                print_success "Authentication disabled - application runs without login"
-                break
-                ;;
-            *)
-                print_error "Please enter 'y' for yes, 'n' for no, or press Enter for default (no)"
-                ;;
-        esac
+        # Clean the input and check
+        AUTH_CHOICE_CLEAN=$(echo "$AUTH_CHOICE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        if [ -z "$AUTH_CHOICE_CLEAN" ]; then
+            # Empty input - default to No
+            AUTH_PASSWORD=""
+            print_success "Authentication disabled - application runs without login"
+            break
+        elif echo "$AUTH_CHOICE_CLEAN" | grep -qi "^y\|^yes$"; then
+            # Yes input
+            AUTH_PASSWORD="YES"
+            print_success "Authentication enabled - users will need to log in"
+            print_status "You'll be able to create user accounts after installation"
+            break
+        elif echo "$AUTH_CHOICE_CLEAN" | grep -qi "^n\|^no$"; then
+            # No input
+            AUTH_PASSWORD=""
+            print_success "Authentication disabled - application runs without login"
+            break
+        else
+            print_error "Please enter 'y' for yes, 'n' for no, or press Enter for default (no)"
+        fi
     done
     
     # Generate session secret
@@ -412,7 +415,10 @@ print_success "Environment file created"
 print_status "Setting up database..."
 # Source environment variables for database commands
 if [ -f ".env" ]; then
-    export $(grep -v '^#' .env | xargs)
+    # Use a safer method to export variables that handles special characters
+    set -a
+    source .env
+    set +a
 fi
 
 if [ "$FRESH_INSTALL" = true ]; then
