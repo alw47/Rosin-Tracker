@@ -297,8 +297,8 @@ SESSION_SECRET=$SESSION_SECRET
 NODE_ENV=production
 PORT=5000
 
-# Optional: Enable authentication (uncomment and set password)
-# AUTH_PASSWORD=your_secure_password_here
+# Authentication Settings (leave commented to disable authentication)
+# AUTH_PASSWORD=YES  # Set to "YES" to enable email-based authentication with 2FA support
 EOF
 
 print_success "Environment file created"
@@ -464,7 +464,10 @@ echo ""
 # Show next steps
 echo "🚀 Next Steps:"
 echo "1. Visit your web interface to start tracking rosin batches"
-echo "2. Optional: Set AUTH_PASSWORD in .env to enable login protection"
+echo "2. Optional: Enable authentication by setting AUTH_PASSWORD=YES in .env"
+echo "   - Creates secure email-based login with 2FA support"
+echo "   - Includes QR code setup for authenticator apps"
+echo "   - Features comprehensive user management and security"
 echo "3. Set up regular database backups"
 echo "4. Monitor logs for any issues"
 echo ""
