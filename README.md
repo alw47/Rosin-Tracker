@@ -10,7 +10,7 @@ A comprehensive rosin press tracking application designed for cannabis processin
 - **Image Documentation**: Upload and attach images to batches and curing logs
 - **Unit System Toggle**: Dynamic switching between metric and imperial units
 - **Dark Mode**: Beautiful dark theme (default) with light mode support
-- **Optional Authentication**: Secure login system for self-hosted deployments
+- **Enterprise Authentication**: Email-based login with 2FA support, QR code setup, and comprehensive user management
 - **Responsive Design**: Mobile-first approach with desktop optimization
 
 ## Quick Start
@@ -37,6 +37,7 @@ This script will:
 - Configure systemd service for auto-startup
 - Setup SSL with Let's Encrypt (optional)
 - Start the application on port 5000
+- Enable optional authentication with 2FA support
 
 ### Manual Installation
 
@@ -69,6 +70,17 @@ If you prefer manual setup or are using a different OS:
 
 Application available at `http://localhost:5000`
 
+## Authentication Setup
+
+When `AUTH_PASSWORD=YES` is set in your environment:
+
+1. **First Visit**: You'll be redirected to create your initial user account
+2. **Account Creation**: Set up your email and password for secure login
+3. **2FA Setup**: Optional but recommended - scan QR code with authenticator app
+4. **Login Process**: Use email/password + 2FA code for secure access
+
+**Supported Authenticator Apps**: Google Authenticator, Authy, Microsoft Authenticator, or any TOTP-compatible app.
+
 ## Configuration
 
 ### Environment Variables
@@ -77,8 +89,8 @@ Application available at `http://localhost:5000`
 # Database (Required)
 DATABASE_URL=postgresql://username:password@localhost:5432/rosin_tracker
 
-# Authentication (Optional - leave empty to disable)
-AUTH_PASSWORD=your-secure-password
+# Authentication (Optional - set to "YES" to enable email-based login with 2FA)
+AUTH_PASSWORD=YES
 
 # Session Security (Recommended for production)
 SESSION_SECRET=your-random-secret-string

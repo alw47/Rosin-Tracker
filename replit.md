@@ -230,6 +230,7 @@ Changelog:
 - July 1, 2025. Fixed QR code display in 2FA setup modal and enhanced login page to properly handle 2FA requirements
 - July 1, 2025. Updated installation script with comprehensive documentation for new authentication and 2FA features
 - July 1, 2025. Successfully tested complete 2FA workflow from setup through login verification on production system
+- July 1, 2025. Updated all documentation with correct GitHub repository URL (alw47/Rosin-Tracker) and comprehensive 2FA authentication setup instructions
 ```
 
 ## User Preferences
