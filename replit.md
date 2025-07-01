@@ -249,6 +249,7 @@ Changelog:
 - July 1, 2025. TOP-LEVEL AWAIT FIX: Converted dynamic imports to require() statements to resolve ES module compatibility issues in production builds
 - July 1, 2025. FINAL ES MODULE FIX: Moved environment loading into main async function and restored proper dynamic imports for ES module compatibility
 - July 1, 2025. CRITICAL PATH FIX: Fixed hardcoded directory path in installation script that was causing "No such file or directory" errors during environment testing
+- July 1, 2025. PRODUCTION STARTUP FIX: Fixed systemd service ExecStart path from "dist/index.js" to "./dist/index.js" to resolve Node.js module resolution errors in production deployment
 ```
 
 ## User Preferences

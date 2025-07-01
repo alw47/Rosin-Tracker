@@ -648,7 +648,7 @@ Environment=NODE_ENV=production
 Environment=PATH=$PATH
 EnvironmentFile=$CURRENT_DIR/.env
 ExecStartPre=$NPM_PATH run build
-ExecStart=$NODE_PATH dist/index.js
+ExecStart=$NODE_PATH ./dist/index.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
