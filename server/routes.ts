@@ -22,6 +22,7 @@ let authSettings = {
 
 // Check if authentication is enabled (environment-based)
 const isAuthEnabled = () => {
+  console.log("AUTH_PASSWORD value:", process.env.AUTH_PASSWORD, "Expected: YES");
   return process.env.AUTH_PASSWORD === "YES";
 };
 
