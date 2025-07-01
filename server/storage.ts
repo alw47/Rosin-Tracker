@@ -1,4 +1,4 @@
-import { rosinPresses, curingLogs, curingReminders, type RosinPress, type InsertRosinPress, type CuringLog, type InsertCuringLog, type CuringReminder, type InsertCuringReminder } from "@shared/schema";
+import { rosinPresses, curingLogs, curingReminders, users, type RosinPress, type InsertRosinPress, type CuringLog, type InsertCuringLog, type CuringReminder, type InsertCuringReminder, type User } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, and, gte, lte, ilike, sql, isNotNull, inArray } from "drizzle-orm";
 
@@ -85,6 +85,9 @@ export interface IStorage {
     recentPerformance: number; // Yield trend over last 5 batches
     qualityScore: number; // Based on curing data
   }[]>;
+  
+  // User management operations
+  getAllUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -697,6 +700,11 @@ export class DatabaseStorage implements IStorage {
     });
 
     return rankings;
+  }
+
+  // User management operations
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
   }
 }
 

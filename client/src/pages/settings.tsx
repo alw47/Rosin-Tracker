@@ -18,8 +18,16 @@ import { Settings, Shield, Smartphone, Key, Save, AlertTriangle, Moon, Sun, Pale
 
 interface SecuritySettings {
   authEnabled: boolean;
+  hasUsers: boolean;
+  needsSetup: boolean;
   twoFactorEnabled: boolean;
   sessionTimeout: number;
+  currentUser: {
+    id: number;
+    email: string;
+    username: string;
+    isEmailVerified: boolean;
+  } | null;
 }
 
 interface Setup2FAResponse {
@@ -40,6 +48,16 @@ export default function SettingsPage() {
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [clearExistingData, setClearExistingData] = useState(false);
+  
+  // User setup states
+  const [setupEmail, setSetupEmail] = useState("");
+  const [setupUsername, setSetupUsername] = useState("");
+  const [setupPassword, setSetupPassword] = useState("");
+  const [setupConfirmPassword, setSetupConfirmPassword] = useState("");
+  
+  // User management states
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
 
   // Fetch current security settings
   const { data: settings, isLoading } = useQuery<SecuritySettings>({
@@ -235,6 +253,162 @@ export default function SettingsPage() {
     event.target.value = '';
   };
 
+  // User setup mutation (when no users exist)
+  const setupUserMutation = useMutation({
+    mutationFn: async (data: { email: string; username: string; password: string }) => {
+      return await apiRequest("POST", "/api/settings/setup", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account Created",
+        description: "Your user account has been created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/security"] });
+      setSetupEmail("");
+      setSetupUsername("");
+      setSetupPassword("");
+      setSetupConfirmPassword("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Setup Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Change password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      return await apiRequest("POST", "/api/settings/change-password", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password Updated",
+        description: "Your password has been changed successfully.",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Password Change Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Change email mutation
+  const changeEmailMutation = useMutation({
+    mutationFn: async (data: { newEmail: string; password: string }) => {
+      return await apiRequest("POST", "/api/settings/change-email", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email Updated",
+        description: "Your email address has been changed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/security"] });
+      setNewEmail("");
+      setEmailPassword("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Email Change Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUserSetup = async () => {
+    if (!setupEmail || !setupUsername || !setupPassword) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (setupPassword !== setupConfirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Password and confirmation don't match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (setupPassword.length < 8) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setupUserMutation.mutate({
+      email: setupEmail,
+      username: setupUsername,
+      password: setupPassword,
+    });
+  };
+
+  const handlePasswordChange = async () => {
+    if (!currentPassword || !newPassword) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "New password and confirmation don't match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    changePasswordMutation.mutate({
+      currentPassword,
+      newPassword,
+    });
+  };
+
+  const handleEmailChange = async () => {
+    if (!newEmail || !emailPassword) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    changeEmailMutation.mutate({
+      newEmail,
+      password: emailPassword,
+    });
+  };
+
   const handleEnableAuth = async () => {
     if (newPassword !== confirmPassword) {
       toast({
@@ -382,7 +556,7 @@ export default function SettingsPage() {
             <CardTitle>Authentication</CardTitle>
           </div>
           <CardDescription>
-            Secure your Rosin Tracker with password protection
+            Manage user accounts and security settings
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -407,70 +581,180 @@ export default function SettingsPage() {
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Authentication is currently disabled. Anyone with access to this URL can use the application.
+                  Authentication is disabled. Set the AUTH_PASSWORD environment variable to enable login protection.
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : settings?.needsSetup ? (
+            <div className="space-y-4">
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  Authentication is enabled but no user accounts exist. Create your account below.
                 </AlertDescription>
               </Alert>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
+                  <Label htmlFor="setupEmail">Email Address</Label>
                   <Input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter a secure password"
+                    id="setupEmail"
+                    type="email"
+                    value={setupEmail}
+                    onChange={(e) => setSetupEmail(e.target.value)}
+                    placeholder="Enter your email"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="setupUsername">Username</Label>
                   <Input
-                    id="confirmPassword"
+                    id="setupUsername"
+                    type="text"
+                    value={setupUsername}
+                    onChange={(e) => setSetupUsername(e.target.value)}
+                    placeholder="Choose a username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="setupPassword">Password</Label>
+                  <Input
+                    id="setupPassword"
                     type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    value={setupPassword}
+                    onChange={(e) => setSetupPassword(e.target.value)}
+                    placeholder="Create a strong password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="setupConfirmPassword">Confirm Password</Label>
+                  <Input
+                    id="setupConfirmPassword"
+                    type="password"
+                    value={setupConfirmPassword}
+                    onChange={(e) => setSetupConfirmPassword(e.target.value)}
                     placeholder="Confirm your password"
                   />
                 </div>
               </div>
               
               <Button 
-                onClick={handleEnableAuth}
-                disabled={updateAuthMutation.isPending || !newPassword || !confirmPassword}
+                onClick={handleUserSetup}
+                disabled={setupUserMutation.isPending || !setupEmail || !setupUsername || !setupPassword || !setupConfirmPassword}
                 className="w-full"
               >
                 <Shield className="mr-2 h-4 w-4" />
-                {updateAuthMutation.isPending ? "Enabling..." : "Enable Authentication"}
+                {setupUserMutation.isPending ? "Creating Account..." : "Create Your Account"}
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <Alert>
-                <Shield className="h-4 w-4" />
-                <AlertDescription>
-                  Authentication is enabled. Users must log in to access the application.
-                </AlertDescription>
-              </Alert>
+            <div className="space-y-6">
+              {/* Current User Info */}
+              {settings?.currentUser && (
+                <div className="space-y-4">
+                  <Alert>
+                    <Shield className="h-4 w-4" />
+                    <AlertDescription>
+                      Logged in as {settings.currentUser.username} ({settings.currentUser.email})
+                      {!settings.currentUser.isEmailVerified && " - Email not verified"}
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input
-                  id="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter current password to make changes"
-                />
+              {/* Password Change */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Change Password</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Current password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={handlePasswordChange}
+                  disabled={changePasswordMutation.isPending || !currentPassword || !newPassword || !confirmPassword}
+                  className="w-full"
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  {changePasswordMutation.isPending ? "Updating..." : "Change Password"}
+                </Button>
               </div>
 
-              <Button 
-                onClick={handleDisableAuth}
-                disabled={updateAuthMutation.isPending || !currentPassword}
-                variant="destructive"
-                className="w-full"
-              >
-                {updateAuthMutation.isPending ? "Disabling..." : "Disable Authentication"}
-              </Button>
+              <Separator />
+
+              {/* Email Change */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Change Email Address</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newEmail">New Email Address</Label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="Enter new email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emailPassword">Confirm Password</Label>
+                    <Input
+                      id="emailPassword"
+                      type="password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
+                      placeholder="Enter your password"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleEmailChange}
+                  disabled={changeEmailMutation.isPending || !newEmail || !emailPassword}
+                  className="w-full"
+                >
+                  {changeEmailMutation.isPending ? "Updating..." : "Change Email"}
+                </Button>
+              </div>
+
+              <Separator />
+
+              {/* Recovery Information */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Account Recovery</h4>
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Important:</strong> If you forget your password or lose 2FA access, you'll need server-side access to reset your account. 
+                    Keep your login credentials and 2FA backup codes secure. For emergency recovery, access the server console and use the database management tools.
+                  </AlertDescription>
+                </Alert>
+              </div>
             </div>
           )}
         </CardContent>

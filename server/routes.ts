@@ -2,7 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { AuthService } from "./auth-service";
-import { insertRosinPressSchema, insertCuringLogSchema, insertCuringReminderSchema } from "@shared/schema";
+import { insertRosinPressSchema, insertCuringLogSchema, insertCuringReminderSchema, users } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -76,8 +78,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Authentication routes using AuthService
-  app.get("/api/auth/status", (req, res) => {
-    res.json({ enabled: isAuthEnabled() });
+  app.get("/api/auth/status", async (req, res) => {
+    const enabled = isAuthEnabled();
+    let hasUsers = false;
+    
+    if (enabled) {
+      try {
+        // Check if any users exist in the system
+        const allUsers = await storage.getAllUsers();
+        hasUsers = allUsers.length > 0;
+      } catch (error) {
+        console.error("Error checking users:", error);
+      }
+    }
+    
+    res.json({ 
+      enabled, 
+      hasUsers,
+      needsSetup: enabled && !hasUsers 
+    });
   });
 
   app.get("/api/auth/user", async (req: any, res) => {
@@ -180,17 +199,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Settings routes for authentication management using AuthService
   app.get("/api/settings/security", async (req: any, res) => {
     try {
+      const authEnabled = isAuthEnabled();
+      let hasUsers = false;
+      let currentUser = null;
       let twoFactorEnabled = false;
       
-      if (isAuthEnabled() && req.session.userId) {
-        const user = await AuthService.findUserById(req.session.userId);
-        twoFactorEnabled = user?.twoFactorEnabled || false;
+      if (authEnabled) {
+        const allUsers = await storage.getAllUsers();
+        hasUsers = allUsers.length > 0;
+        
+        if (req.session.userId) {
+          currentUser = await AuthService.findUserById(req.session.userId);
+          twoFactorEnabled = currentUser?.twoFactorEnabled || false;
+        }
       }
       
       res.json({
-        authEnabled: isAuthEnabled(),
+        authEnabled,
+        hasUsers,
+        needsSetup: authEnabled && !hasUsers,
         twoFactorEnabled,
         sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
+        currentUser: currentUser ? {
+          id: currentUser.id,
+          email: currentUser.email,
+          username: currentUser.username,
+          isEmailVerified: currentUser.isEmailVerified
+        } : null
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch security settings" });
@@ -251,6 +286,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Failed to update authentication settings" });
     }
+  });
+
+  // Initial user setup route (when no users exist and auth enabled)
+  app.post("/api/settings/setup", async (req: any, res) => {
+    if (!isAuthEnabled()) {
+      return res.status(400).json({ message: "Authentication is not enabled. Set AUTH_PASSWORD environment variable first." });
+    }
+
+    const { email, username, password } = req.body;
+
+    try {
+      // Check if any users already exist
+      const allUsers = await storage.getAllUsers();
+      if (allUsers.length > 0) {
+        return res.status(400).json({ message: "Users already exist. Use the change password feature instead." });
+      }
+
+      if (!email || !username || !password) {
+        return res.status(400).json({ message: "Email, username, and password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      // Create the first user
+      const user = await AuthService.createUser(email, username, password);
+      
+      // Set up session for the newly created user
+      req.session.userId = user.id;
+      
+      res.json({ 
+        success: true, 
+        message: "Initial user account created successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username
+        }
+      });
+    } catch (error: any) {
+      console.error("User setup error:", error);
+      if (error.message.includes("already exists")) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to create user account" });
+      }
+    }
+  });
+
+  // Change user password route
+  app.post("/api/settings/change-password", async (req: any, res) => {
+    if (!isAuthEnabled() || !req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    try {
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters long" });
+      }
+
+      const user = await AuthService.findUserById(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const validPassword = await AuthService.verifyPassword(currentPassword, user.passwordHash);
+      if (!validPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Update password
+      const hashedPassword = await AuthService.hashPassword(newPassword);
+      await db.update(users)
+        .set({ passwordHash: hashedPassword, updatedAt: new Date() })
+        .where(eq(users.id, user.id));
+
+      // Reset failed login attempts
+      await AuthService.resetFailedAttempts(user.id);
+
+      res.json({ success: true, message: "Password updated successfully" });
+    } catch (error: any) {
+      console.error("Password change error:", error);
+      res.status(500).json({ message: "Failed to update password" });
+    }
+  });
+
+  // Change user email route
+  app.post("/api/settings/change-email", async (req: any, res) => {
+    if (!isAuthEnabled() || !req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { newEmail, password } = req.body;
+
+    try {
+      if (!newEmail || !password) {
+        return res.status(400).json({ message: "New email and password are required" });
+      }
+
+      const user = await AuthService.findUserById(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Verify password
+      const validPassword = await AuthService.verifyPassword(password, user.passwordHash);
+      if (!validPassword) {
+        return res.status(401).json({ message: "Password is incorrect" });
+      }
+
+      // Check if email is already in use
+      const emailAvailable = await AuthService.isEmailAvailable(newEmail);
+      if (!emailAvailable) {
+        return res.status(400).json({ message: "Email is already in use" });
+      }
+
+      // Update email
+      await db.update(users)
+        .set({ 
+          email: newEmail, 
+          isEmailVerified: false, // Reset verification status
+          updatedAt: new Date() 
+        })
+        .where(eq(users.id, user.id));
+
+      res.json({ success: true, message: "Email updated successfully" });
+    } catch (error: any) {
+      console.error("Email change error:", error);
+      res.status(500).json({ message: "Failed to update email" });
+    }
+  });
+
+  // Server-side recovery route (for 2FA/password recovery)
+  app.post("/api/admin/reset-user", async (req: any, res) => {
+    // This route can only be accessed via server console/direct database access
+    // Add specific server-side authentication or disable in production
+    res.status(403).json({ 
+      message: "Use server console access for emergency recovery. See documentation for manual reset procedures." 
+    });
   });
 
   // 2FA Setup Route using AuthService
