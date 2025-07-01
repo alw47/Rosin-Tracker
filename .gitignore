@@ -90,3 +90,10 @@ vite.config.ts.*
 # Production
 /uploads
 /public/uploads
+
+# Attached assets - exclude pasted files and temporary content
+attached_assets/Pasted-*.txt
+attached_assets/Pasted*.txt
+attached_assets/*.log
+attached_assets/temp-*
+attached_assets/temp_*
