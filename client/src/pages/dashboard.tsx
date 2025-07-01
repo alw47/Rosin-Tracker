@@ -321,53 +321,53 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="h-fit">
+          <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 p-4">
+          <CardContent className="space-y-4 pt-0">
             <Link href="/new-press">
-              <Button variant="outline" className="w-full justify-between h-auto p-3">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Plus className="h-4 w-4 text-green-600" />
+              <Button variant="outline" className="w-full justify-between h-auto p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Plus className="h-5 w-5 text-green-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-sm">New Press</p>
-                    <p className="text-xs text-gray-500">Start new batch</p>
+                    <p className="font-medium">New Press</p>
+                    <p className="text-sm text-gray-500">Start new batch</p>
                   </div>
                 </div>
-                <ArrowRight className="h-3 w-3 text-gray-400" />
+                <ArrowRight className="h-4 w-4 text-gray-400" />
               </Button>
             </Link>
 
             <Link href="/curing-logs">
-              <Button variant="outline" className="w-full justify-between h-auto p-3">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Clock className="h-4 w-4 text-yellow-600" />
+              <Button variant="outline" className="w-full justify-between h-auto p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-yellow-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-sm">Curing Log</p>
-                    <p className="text-xs text-gray-500">Update curing status</p>
+                    <p className="font-medium">Curing Log</p>
+                    <p className="text-sm text-gray-500">Update curing status</p>
                   </div>
                 </div>
-                <ArrowRight className="h-3 w-3 text-gray-400" />
+                <ArrowRight className="h-4 w-4 text-gray-400" />
               </Button>
             </Link>
 
             <Link href="/analytics">
-              <Button variant="outline" className="w-full justify-between h-auto p-3">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
+              <Button variant="outline" className="w-full justify-between h-auto p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="text-left">
-                    <p className="font-medium text-sm">Analytics</p>
-                    <p className="text-xs text-gray-500">View detailed reports</p>
+                    <p className="font-medium">Analytics</p>
+                    <p className="text-sm text-gray-500">View detailed reports</p>
                   </div>
                 </div>
-                <ArrowRight className="h-3 w-3 text-gray-400" />
+                <ArrowRight className="h-4 w-4 text-gray-400" />
               </Button>
             </Link>
           </CardContent>
