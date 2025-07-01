@@ -233,10 +233,8 @@ if [ "$FRESH_INSTALL" = true ]; then
         read -s DB_PASSWORD_INPUT
         echo ""
         
-        # Debug: Check if password is truly empty (trim whitespace)
-        DB_PASSWORD_INPUT=$(echo "$DB_PASSWORD_INPUT" | tr -d '[:space:]')
-        
-        if [ -z "$DB_PASSWORD_INPUT" ]; then
+        # Check if password is empty (check length directly)
+        if [ ${#DB_PASSWORD_INPUT} -eq 0 ]; then
             DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
             print_success "Auto-generated secure password"
             break
@@ -245,9 +243,6 @@ if [ "$FRESH_INSTALL" = true ]; then
             echo -n "Confirm database password: "
             read -s DB_PASSWORD_CONFIRM
             echo ""
-            
-            # Trim whitespace from confirmation too
-            DB_PASSWORD_CONFIRM=$(echo "$DB_PASSWORD_CONFIRM" | tr -d '[:space:]')
             
             if [ "$DB_PASSWORD_INPUT" = "$DB_PASSWORD_CONFIRM" ]; then
                 DB_PASSWORD="$DB_PASSWORD_INPUT"
@@ -269,28 +264,26 @@ if [ "$FRESH_INSTALL" = true ]; then
         echo -n "Enable authentication for secure login? (y/N): "
         read -r AUTH_CHOICE
         
-        # Default to N if empty
-        if [ -z "$AUTH_CHOICE" ]; then
-            AUTH_CHOICE="N"
-        fi
-        
-        # Convert to lowercase for comparison
-        AUTH_CHOICE_LOWER=$(echo "$AUTH_CHOICE" | tr '[:upper:]' '[:lower:]')
-        
-        case "$AUTH_CHOICE_LOWER" in
-            y|yes)
+        # Handle empty input (Enter key) as default No
+        case "${AUTH_CHOICE}" in
+            "")
+                AUTH_PASSWORD=""
+                print_success "Authentication disabled - application runs without login"
+                break
+                ;;
+            [Yy]|[Yy][Ee][Ss])
                 AUTH_PASSWORD="YES"
                 print_success "Authentication enabled - users will need to log in"
                 print_status "You'll be able to create user accounts after installation"
                 break
                 ;;
-            n|no)
+            [Nn]|[Nn][Oo])
                 AUTH_PASSWORD=""
                 print_success "Authentication disabled - application runs without login"
                 break
                 ;;
             *)
-                print_error "Please enter 'y' for yes or 'n' for no (or press Enter for default: no)"
+                print_error "Please enter 'y' for yes, 'n' for no, or press Enter for default (no)"
                 ;;
         esac
     done
@@ -391,19 +384,20 @@ fi
 
 # Create environment file
 print_status "Creating environment configuration..."
-cat > .env << EOF
+
+# Create base .env file
+cat > .env << 'ENVEOF'
 # Database Configuration
-DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@localhost:5432/rosin_tracker
-
 # Session Security
-SESSION_SECRET=$SESSION_SECRET
-
 # Application Settings
 NODE_ENV=production
 PORT=5000
-
 # Authentication Settings
-EOF
+ENVEOF
+
+# Add variables with proper substitution
+echo "DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@localhost:5432/rosin_tracker" >> .env
+echo "SESSION_SECRET=$SESSION_SECRET" >> .env
 
 # Add authentication setting conditionally
 if [ -n "$AUTH_PASSWORD" ]; then
