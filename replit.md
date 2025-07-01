@@ -250,6 +250,7 @@ Changelog:
 - July 1, 2025. FINAL ES MODULE FIX: Moved environment loading into main async function and restored proper dynamic imports for ES module compatibility
 - July 1, 2025. CRITICAL PATH FIX: Fixed hardcoded directory path in installation script that was causing "No such file or directory" errors during environment testing
 - July 1, 2025. PRODUCTION STARTUP FIX: Fixed systemd service ExecStart path from "dist/index.js" to "./dist/index.js" to resolve Node.js module resolution errors in production deployment
+- July 1, 2025. INSTALLATION SCRIPT DEBUG FIX: Added error tolerance to systemctl and journalctl commands to prevent script from exiting before showing detailed diagnostic information
 ```
 
 ## User Preferences

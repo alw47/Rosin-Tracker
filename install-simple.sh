@@ -825,11 +825,11 @@ else
             else
                 print_error "Service stopped for unknown reason"
                 print_error "Service status:"
-                sudo systemctl status rosin-tracker --no-pager
+                sudo systemctl status rosin-tracker --no-pager || true
                 print_error "Recent logs:"
-                sudo journalctl -u rosin-tracker --no-pager -n 30
+                sudo journalctl -u rosin-tracker --no-pager -n 30 || true
                 print_error "Detailed application logs:"
-                sudo journalctl -u rosin-tracker --no-pager -n 50 -o cat
+                sudo journalctl -u rosin-tracker --no-pager -n 50 -o cat || true
                 
                 # Test the built application directly to see the error
                 print_error "Testing built application directly..."
