@@ -69,7 +69,7 @@ export default function Login() {
     setError("");
 
     try {
-      await apiRequest("POST", "/api/auth/setup", {
+      await apiRequest("POST", "/api/settings/setup", {
         email,
         password,
       });
