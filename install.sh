@@ -62,12 +62,12 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "OPTIONS:"
             echo "  --fresh     Fresh installation (default) - sets up database schema and resets sequences to start from ID 1"
-            echo "  --update    Update existing installation - preserves ALL existing data, sequences, and schema"
+            echo "  --update    Update existing installation - applies schema updates safely with data protection"
             echo "  --help, -h  Show this help message"
             echo ""
             echo "SAFETY NOTES:"
             echo "  --fresh: Only use for new installations - will reset database sequences"
-            echo "  --update: Safe for existing installations - skips schema changes to prevent data loss"
+            echo "  --update: Safe for existing installations - applies schema updates with automatic backup/restore protection"
             echo ""
             echo "Examples:"
             echo "  curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash"
@@ -323,10 +323,7 @@ if [ "$FRESH_INSTALL" = true ]; then
     npx tsx scripts/init-db.ts
     print_success "Database sequences initialized - new entries will start from ID 1"
 else
-    print_status "Update mode - preserving existing data..."
-    
-    # Check if schema changes are needed by comparing package versions or dates
-    print_status "Checking for necessary schema updates..."
+    print_status "Update mode - safely applying schema updates..."
     
     # Create a backup before any potential schema changes
     BACKUP_FILE="/tmp/rosin_tracker_backup_$(date +%Y%m%d_%H%M%S).sql"
@@ -336,11 +333,43 @@ else
     if [ $? -eq 0 ]; then
         print_success "Database backed up to $BACKUP_FILE"
         
-        # Only run db:push if we detect it's needed (for now, skip it in update mode to be safe)
-        print_status "Skipping schema push in update mode to preserve data"
-        print_success "Database preservation complete - existing data safe"
+        # Count existing records before schema update
+        BEFORE_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT COUNT(*) FROM rosin_presses;" 2>/dev/null | xargs || echo "0")
+        print_status "Found $BEFORE_COUNT existing rosin press records"
+        
+        # Apply schema changes with Drizzle
+        print_status "Applying schema updates..."
+        npm run db:push
+        
+        # Verify data integrity after schema update
+        AFTER_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT COUNT(*) FROM rosin_presses;" 2>/dev/null | xargs || echo "0")
+        
+        if [ "$AFTER_COUNT" = "$BEFORE_COUNT" ] && [ "$BEFORE_COUNT" != "0" ]; then
+            print_success "Schema updated successfully - all $AFTER_COUNT records preserved"
+            # Clean up backup since update was successful
+            rm -f "$BACKUP_FILE" 2>/dev/null
+        elif [ "$BEFORE_COUNT" = "0" ]; then
+            print_success "Schema updated successfully - no existing data to preserve"
+            rm -f "$BACKUP_FILE" 2>/dev/null
+        else
+            print_warning "Data count mismatch detected! Before: $BEFORE_COUNT, After: $AFTER_COUNT"
+            print_status "Restoring database from backup..."
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" < "$BACKUP_FILE" 2>/dev/null
+            
+            # Verify restoration
+            RESTORED_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT COUNT(*) FROM rosin_presses;" 2>/dev/null | xargs || echo "0")
+            if [ "$RESTORED_COUNT" = "$BEFORE_COUNT" ]; then
+                print_success "Database restored successfully from backup"
+                print_warning "Schema update skipped due to data integrity concerns"
+                print_status "Backup retained at: $BACKUP_FILE"
+            else
+                print_error "Database restoration failed! Manual recovery may be needed."
+                print_error "Backup file location: $BACKUP_FILE"
+                exit 1
+            fi
+        fi
     else
-        print_warning "Could not create backup - proceeding without schema changes"
+        print_warning "Could not create backup - skipping schema updates for safety"
         print_success "Update complete - no schema changes applied"
     fi
 fi
