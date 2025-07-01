@@ -627,10 +627,29 @@ if [ ! -f "dist/index.js" ]; then
     exit 1
 fi
 
-# Apply post-build fixes if needed
+# Apply Node.js compatibility fixes to source files before building
+print_status "Applying Node.js compatibility fixes to source files..."
+
+# Fix import.meta.dirname in server/vite.ts
+if [ -f "server/vite.ts" ]; then
+    if grep -q "import\.meta\.dirname" server/vite.ts; then
+        sed -i 's/import\.meta\.dirname/path.dirname(new URL(import.meta.url).pathname)/g' server/vite.ts
+        print_success "Fixed import.meta.dirname in server/vite.ts"
+    fi
+fi
+
+# Fix import.meta.dirname in server/index.ts if present
+if [ -f "server/index.ts" ]; then
+    if grep -q "import\.meta\.dirname" server/index.ts; then
+        sed -i 's/import\.meta\.dirname/path.dirname(new URL(import.meta.url).pathname)/g' server/index.ts
+        print_success "Fixed import.meta.dirname in server/index.ts"
+    fi
+fi
+
+# Apply post-build fixes as backup if needed
 if [ -f "dist/index.js" ]; then
     if grep -q "import\.meta\.dirname" dist/index.js; then
-        print_status "Applying post-build Node.js compatibility fixes..."
+        print_status "Applying additional post-build Node.js compatibility fixes..."
         sed -i 's/import\.meta\.dirname/path.dirname(new URL(import.meta.url).pathname)/g' dist/index.js
         print_success "Applied post-build fixes"
     fi
