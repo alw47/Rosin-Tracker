@@ -3,13 +3,15 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, Plus, List, TrendingUp, History, Settings, LogOut, FileText, Target, TestTube } from "lucide-react";
+import { BarChart3, Plus, List, TrendingUp, History, Settings, LogOut, FileText, Target, TestTube, Menu, X } from "lucide-react";
 import logoImage from "@assets/Rosin Logger Logo Cropped transparent_1751361491826.png";
+import { useState } from "react";
 
 export function Sidebar() {
   const [location] = useLocation();
   const { authEnabled, logout } = useAuth();
   const { toast } = useToast();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -37,9 +39,22 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="lg:w-64 bg-card shadow-sm border-r border-border lg:min-h-screen">
-      <div className="p-6">
-        <div className="flex items-center space-x-3 mb-8">
+    <aside className={cn(
+      "bg-card shadow-sm border-r border-border lg:min-h-screen transition-all duration-300 relative",
+      isCollapsed ? "lg:w-16" : "lg:w-64"
+    )}>
+      {/* Toggle Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-4 z-10 h-6 w-6 rounded-full bg-background border border-border shadow-sm hover:shadow-md"
+      >
+        {isCollapsed ? <Menu className="h-3 w-3" /> : <X className="h-3 w-3" />}
+      </Button>
+
+      <div className={cn("p-6", isCollapsed && "p-3")}>
+        <div className={cn("flex items-center mb-8", isCollapsed ? "justify-center" : "space-x-3")}>
           <div className="w-10 h-10 flex items-center justify-center">
             <img 
               src={logoImage} 
@@ -47,32 +62,33 @@ export function Sidebar() {
               className="w-10 h-10 object-contain"
             />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Rosin Tracker</h1>
-          </div>
-        </div>
-        
-        {/* Settings */}
-        <div className="mb-6 space-y-4">
-
-
-
-
-          {/* Logout Button - Only show if auth is enabled */}
-          {authEnabled && (
-            <div className="p-3 bg-muted rounded-lg">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="w-full justify-start text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Rosin Tracker</h1>
             </div>
           )}
         </div>
+        
+        {/* Logout Button - Only show if auth is enabled */}
+        {authEnabled && (
+          <div className={cn("mb-6", isCollapsed ? "px-0" : "p-3 bg-muted rounded-lg")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className={cn(
+                "text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent",
+                isCollapsed 
+                  ? "w-10 h-10 p-0 justify-center" 
+                  : "w-full justify-start"
+              )}
+              title={isCollapsed ? "Logout" : undefined}
+            >
+              <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+              {!isCollapsed && "Logout"}
+            </Button>
+          </div>
+        )}
 
         <nav className="space-y-1">
           {navigation.map((item) => {
@@ -81,14 +97,18 @@ export function Sidebar() {
             
             return (
               <Link key={item.name} href={item.href}>
-                <a className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive 
-                    ? "text-primary bg-primary/10 border border-primary/20" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                )}>
-                  <Icon className="mr-3 h-4 w-4" />
-                  {item.name}
+                <a 
+                  className={cn(
+                    "flex items-center text-sm font-medium rounded-md transition-colors",
+                    isCollapsed ? "px-2 py-3 justify-center" : "px-3 py-2",
+                    isActive 
+                      ? "text-primary bg-primary/10 border border-primary/20" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  )}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <Icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
+                  {!isCollapsed && item.name}
                 </a>
               </Link>
             );
