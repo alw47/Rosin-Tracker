@@ -535,25 +535,41 @@ export class DatabaseStorage implements IStorage {
     recentPerformance: number;
     qualityScore: number;
   }[]> {
+    // Build base query with start material filtering
     const conditions = [];
     if (startMaterial && startMaterial !== "all") {
-      conditions.push(sql`${rosinPresses.startMaterial} = ${startMaterial}`);
+      conditions.push(eq(rosinPresses.startMaterial, startMaterial));
     }
 
-    // Get strain data with yields and batch info
-    const strainQuery = db
-      .select({
-        strain: sql<string>`unnest(${rosinPresses.strain})`,
-        yieldPercentage: rosinPresses.yieldPercentage,
-        yieldAmount: rosinPresses.yieldAmount,
-        startAmount: rosinPresses.startAmount,
-        pressDate: rosinPresses.pressDate,
-        batchId: rosinPresses.id
-      })
-      .from(rosinPresses)
+    // Get all matching batches first
+    const filteredBatches = await db.select().from(rosinPresses)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    const batchData = await strainQuery;
+    // Process strain data from filtered batches
+    const strainData: Array<{
+      strain: string;
+      yieldPercentage: number | null;
+      yieldAmount: number | null;
+      startAmount: number | null;
+      pressDate: Date;
+      batchId: number;
+    }> = [];
+
+    // Expand strain arrays for each filtered batch
+    filteredBatches.forEach(batch => {
+      if (batch.strain && Array.isArray(batch.strain)) {
+        batch.strain.forEach(strainName => {
+          strainData.push({
+            strain: strainName,
+            yieldPercentage: batch.yieldPercentage,
+            yieldAmount: batch.yieldAmount,
+            startAmount: batch.startAmount,
+            pressDate: batch.pressDate,
+            batchId: batch.id
+          });
+        });
+      }
+    });
 
     // Group by strain and calculate metrics
     const strainMetrics = new Map<string, {
@@ -564,7 +580,7 @@ export class DatabaseStorage implements IStorage {
     }>();
 
     // Process batch data by strain
-    batchData.forEach(batch => {
+    strainData.forEach(batch => {
       if (!strainMetrics.has(batch.strain)) {
         strainMetrics.set(batch.strain, {
           yields: [],
@@ -636,7 +652,7 @@ export class DatabaseStorage implements IStorage {
       const yieldConsistency = Math.sqrt(variance);
       
       // Recent performance (last 5 batches trend)
-      const sortedBatches = batchData
+      const sortedBatches = strainData
         .filter(b => b.strain === strain && b.yieldPercentage !== null)
         .sort((a, b) => new Date(b.pressDate).getTime() - new Date(a.pressDate).getTime())
         .slice(0, 5);
