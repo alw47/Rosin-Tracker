@@ -632,7 +632,19 @@ print_success "Systemd service file created"
 
 # Ensure npm start script exists and is properly configured
 print_status "Configuring npm start script..."
-if ! npm run start --silent 2>/dev/null; then
+
+# Check if start script exists by parsing package.json
+START_SCRIPT_EXISTS=$(node -e "
+try {
+    const fs = require('fs');
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    console.log(pkg.scripts && pkg.scripts.start ? 'true' : 'false');
+} catch (error) {
+    console.log('false');
+}
+")
+
+if [ "$START_SCRIPT_EXISTS" != "true" ]; then
     print_status "Adding start script to package.json..."
     
     # Backup package.json before modification
@@ -661,9 +673,19 @@ if ! npm run start --silent 2>/dev/null; then
         exit 1
     fi
     
-    # Verify the start script was added correctly
-    if ! npm run start --silent 2>/dev/null; then
-        print_error "Start script was not added correctly"
+    # Verify the start script was added correctly by checking package.json content
+    VERIFICATION=$(node -e "
+    try {
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        console.log(pkg.scripts && pkg.scripts.start ? 'success' : 'failed');
+    } catch (error) {
+        console.log('failed');
+    }
+    ")
+    
+    if [ "$VERIFICATION" != "success" ]; then
+        print_error "Start script verification failed"
         # Restore backup
         mv package.json.backup package.json
         exit 1
