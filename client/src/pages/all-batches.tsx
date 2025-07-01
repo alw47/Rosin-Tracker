@@ -122,7 +122,9 @@ export default function AllBatches() {
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 mb-2">
                         Batch #{batch.id}
                       </Badge>
-                      <CardTitle className="text-lg">{batch.strain}</CardTitle>
+                      <CardTitle className="text-lg">
+                        {Array.isArray(batch.strain) ? batch.strain.join(" + ") : batch.strain}
+                      </CardTitle>
                       <p className="text-sm text-gray-500 mt-1">
                         {new Date(batch.pressDate).toLocaleDateString()}
                       </p>

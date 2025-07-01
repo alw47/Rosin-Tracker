@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { MicronBagInput } from "@/components/ui/micron-bag-input";
+import { MultiStrainInput } from "@/components/ui/multi-strain-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 
@@ -36,7 +37,7 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      strain: initialData?.strain || "",
+      strain: Array.isArray(initialData?.strain) ? initialData.strain : (initialData?.strain ? [initialData.strain] : []),
       startMaterial: initialData?.startMaterial || "",
       startAmount: initialData?.startAmount || 0,
       yieldAmount: initialData?.yieldAmount || 0,
@@ -113,9 +114,13 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
                 name="strain"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Strain</FormLabel>
+                    <FormLabel>Strains</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Blue Dream" {...field} />
+                      <MultiStrainInput
+                        value={field.value || []}
+                        onChange={field.onChange}
+                        placeholder="e.g., Blue Dream"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

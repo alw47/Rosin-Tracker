@@ -6,7 +6,7 @@ import { z } from "zod";
 export const rosinPresses = pgTable("rosin_presses", {
   id: serial("id").primaryKey(),
   pressDate: timestamp("press_date").defaultNow().notNull(),
-  strain: text("strain").notNull(),
+  strain: text("strain").array().notNull(), // Changed to support multiple strains
   startMaterial: text("start_material").notNull(),
   startAmount: real("start_amount").notNull(),
   yieldAmount: real("yield_amount").notNull(),
@@ -80,6 +80,7 @@ export const insertRosinPressSchema = createInsertSchema(rosinPresses).omit({
   id: true,
   pressDate: true,
 }).extend({
+  strain: z.array(z.string().min(1)).min(1, "At least one strain is required"), // Multiple strains support
   micronBags: z.array(micronBagSchema).optional(),
   // Make optional fields truly optional with defaults - allow 0 as N/A indicator
   temperature: z.number().min(0).max(500).optional(),

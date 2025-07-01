@@ -168,7 +168,9 @@ export default function BatchDetails() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Batch #{batch.id}</h1>
-          <p className="text-lg text-gray-600">{batch.strain} - {formatDate(batch.pressDate)}</p>
+          <p className="text-lg text-gray-600">
+            {Array.isArray(batch.strain) ? batch.strain.join(" + ") : batch.strain} - {formatDate(batch.pressDate)}
+          </p>
         </div>
       </div>
 
@@ -182,8 +184,10 @@ export default function BatchDetails() {
             <div className="flex items-center space-x-2">
               <TestTube className="h-4 w-4 text-green-600" />
               <div>
-                <p className="text-sm text-gray-500">Strain</p>
-                <p className="font-semibold">{batch.strain}</p>
+                <p className="text-sm text-gray-500">Strain{Array.isArray(batch.strain) && batch.strain.length > 1 ? 's' : ''}</p>
+                <p className="font-semibold">
+                  {Array.isArray(batch.strain) ? batch.strain.join(" + ") : batch.strain}
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
