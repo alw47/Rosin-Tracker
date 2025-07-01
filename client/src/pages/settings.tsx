@@ -102,7 +102,7 @@ export default function SettingsPage() {
   const setup2FAMutation = useMutation({
     mutationFn: async (): Promise<Setup2FAResponse> => {
       const response = await apiRequest("POST", "/api/settings/2fa/setup");
-      return response;
+      return await response.json();
     },
     onSuccess: (data: Setup2FAResponse) => {
       console.log("2FA Setup Response:", data); // Debug log
