@@ -149,7 +149,7 @@ The application uses two primary tables:
 The application uses environment variables for configuration. A comprehensive `.env.example` template is provided with detailed documentation:
 
 - **DATABASE_URL**: PostgreSQL connection string (required)
-- **AUTH_PASSWORD**: Set to enable login protection, leave empty to disable authentication (optional)
+- **AUTH_PASSWORD**: Set to "YES" to enable login protection, leave empty to disable authentication (optional)
 - **SESSION_SECRET**: Random string for session security (recommended for production)
 - **PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD**: Database connection details
 - **NODE_ENV, PORT**: Application runtime settings
@@ -225,6 +225,7 @@ Changelog:
 - July 1, 2025. Enhanced settings page with password change, email change, and comprehensive user management interface
 - July 1, 2025. Added backend recovery mechanisms and documentation for 2FA/password loss scenarios
 - July 1, 2025. Created comprehensive .env.example template with detailed configuration documentation for all environment variables
+- July 1, 2025. Updated AUTH_PASSWORD implementation to use YES flag instead of actual password for cleaner configuration
 ```
 
 ## User Preferences

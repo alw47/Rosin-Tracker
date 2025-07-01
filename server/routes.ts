@@ -14,16 +14,15 @@ import QRCode from "qrcode";
 // Session configuration
 const MemoryStoreSession = MemoryStore(session);
 
-// In-memory storage for authentication settings
+// In-memory storage for authentication settings (2FA only - AUTH_PASSWORD is environment-based)
 let authSettings = {
-  password: process.env.AUTH_PASSWORD || null,
   twoFactorSecret: null as string | null,
   twoFactorEnabled: false,
 };
 
 // Check if authentication is enabled (environment-based)
 const isAuthEnabled = () => {
-  return process.env.AUTH_PASSWORD !== undefined && process.env.AUTH_PASSWORD.length > 0;
+  return process.env.AUTH_PASSWORD === "YES";
 };
 
 // Authentication middleware using AuthService
@@ -254,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create the admin user
         const user = await AuthService.createUser(email, username, password);
-        authSettings.password = "enabled"; // Flag that auth is enabled
+        // Authentication is controlled by AUTH_PASSWORD environment variable
         
         res.json({ success: true, message: "Authentication enabled and admin user created" });
       } else {
@@ -276,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: "Invalid current password" });
         }
         
-        authSettings.password = null;
+        // Authentication is controlled by AUTH_PASSWORD environment variable
         
         // Clear all sessions
         req.session.destroy(() => {});
