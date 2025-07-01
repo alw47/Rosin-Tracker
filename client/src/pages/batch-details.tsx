@@ -321,8 +321,8 @@ export default function BatchDetails() {
                         alt={`Batch ${batch.id} - Image ${index + 1}`}
                         className="rounded-lg object-cover w-full max-w-[200px] max-h-[200px] aspect-square transition-transform group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded-lg flex items-center justify-center">
-                        <span className="text-white opacity-0 group-hover:opacity-100 text-sm font-medium">
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium text-center px-2">
                           Click to enlarge
                         </span>
                       </div>
@@ -431,8 +431,8 @@ export default function BatchDetails() {
                                   alt={`Curing log ${log.id} - Image ${index + 1}`}
                                   className="rounded object-cover w-full aspect-square transition-transform group-hover:scale-105"
                                 />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded flex items-center justify-center">
-                                  <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium">
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded flex items-center justify-center">
+                                  <span className="text-white opacity-0 group-hover:opacity-100 text-xs font-medium text-center px-2">
                                     Click to enlarge
                                   </span>
                                 </div>
