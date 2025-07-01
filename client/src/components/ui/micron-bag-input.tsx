@@ -157,39 +157,31 @@ export function MicronBagInput({ value = [], onChange, className }: MicronBagInp
   const normalizeBagSize = (size: string): string => {
     if (!size) return size;
     
-    // Remove extra spaces and convert to lowercase
-    let normalized = size.trim().toLowerCase();
+    // Remove units and extra spaces for clean comparison
+    const cleanSize = size.replace(/mm|"|inch|inches/gi, '').trim();
     
     // Extract dimensions using regex
-    const dimensionMatch = normalized.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/);
+    const dimensionMatch = cleanSize.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/);
     if (!dimensionMatch) return size; // Return original if no dimensions found
     
-    let width = parseFloat(dimensionMatch[1]);
-    let height = parseFloat(dimensionMatch[2]);
+    const width = parseFloat(dimensionMatch[1]);
+    const height = parseFloat(dimensionMatch[2]);
     
-    // Convert to a standard format (always use metric internally for normalization)
-    const detectedFormat = detectSizeFormat(size);
-    if (detectedFormat === "imperial") {
-      // Convert inches to mm for normalization
-      width = width * 25.4;
-      height = height * 25.4;
+    // Validate dimensions are reasonable
+    if (width <= 0 || height <= 0 || width > 500 || height > 500) {
+      console.warn('Invalid bag dimensions detected:', size);
+      return size;
     }
     
-    // Always store in current unit system for display
-    if (unitSystem === "imperial") {
-      // Convert back to inches if needed
-      if (detectedFormat === "metric") {
-        width = width / 25.4;
-        height = height / 25.4;
-      }
-      return `${width.toFixed(1)}x${height.toFixed(1)}"`;
-    } else {
-      // Keep in mm
-      if (detectedFormat === "imperial") {
-        // Already converted above
-      }
-      return `${Math.round(width)}x${Math.round(height)}mm`;
-    }
+    // Return clean dimensions without units for storage
+    return `${width}x${height}`;
+  };
+
+  // Clear corrupted localStorage data if needed
+  const clearCorruptedData = () => {
+    localStorage.removeItem("micron-bag-frequently-used");
+    setFrequentlyUsed({ micronSizes: [], bagSizes: [] });
+    console.log('Cleared corrupted micron bag data from localStorage');
   };
 
   // Save usage data to localStorage
@@ -226,8 +218,16 @@ export function MicronBagInput({ value = [], onChange, className }: MicronBagInp
   const addBag = () => {
     if (newBag.micron && newBag.size) {
       const nextLayer = value.length + 1;
-      // Store size without units - just raw dimensions like "51x89"
+      // Store size in raw format without units for better conversion reliability
       const cleanSize = newBag.size.replace(/mm|"|inch|inches/gi, '').trim();
+      
+      // Validate the clean size format
+      const dimensionMatch = cleanSize.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/);
+      if (!dimensionMatch) {
+        console.warn('Invalid bag size format:', newBag.size);
+        return;
+      }
+      
       onChange([...value, { micron: newBag.micron, size: cleanSize, layer: nextLayer }]);
       saveUsageData(newBag.micron, cleanSize);
       setNewBag({ micron: undefined, size: "" });

@@ -95,7 +95,7 @@ export function formatMicronBags(bags: { micron: number; size: string; layer?: n
     return size;
   };
   
-  // Detect the stored format based on typical size ranges
+  // Detect the stored format based on typical size ranges and context
   const detectSizeFormat = (size: string): "metric" | "imperial" => {
     if (!size) return "imperial";
     
@@ -111,17 +111,28 @@ export function formatMicronBags(bags: { micron: number; size: string; layer?: n
     const width = parseFloat(dimensionMatch[1]);
     const height = parseFloat(dimensionMatch[2]);
     
-    // If either dimension is very large (likely pixel dimensions), treat as corrupted data
+    // If either dimension is very large (likely corrupted), treat as corrupted data
     if (width > 500 || height > 500) {
       console.warn(`Detected unusually large micron bag dimensions: ${size}. This appears to be corrupted data.`);
       return "imperial"; // Return imperial to avoid conversion
     }
     
-    // Normal rosin bag size ranges:
-    // Imperial: typically 2-6 inches
-    // Metric: typically 50-150mm
-    if (width <= 12 && height <= 12) return "imperial"; // Likely inches
-    if (width >= 25 && height >= 25) return "metric"; // Likely mm
+    // Since we store raw dimensions, we need smarter detection:
+    // - Very small decimals (like 2.0, 3.1) are likely inches
+    // - Whole numbers in 25-200 range are likely mm
+    // - Decimals with .0 or .5 pattern under 10 are likely inches
+    
+    if ((width <= 10 && height <= 10) && (width % 0.5 === 0 || height % 0.5 === 0)) {
+      return "imperial"; // Likely inches with common fractional sizes
+    }
+    
+    if (width >= 20 && height >= 20 && width === Math.round(width) && height === Math.round(height)) {
+      return "metric"; // Likely whole mm values
+    }
+    
+    // Default based on size ranges
+    if (width <= 15 && height <= 15) return "imperial"; // Likely inches
+    if (width >= 20 && height >= 20) return "metric"; // Likely mm
     
     return "imperial"; // Default fallback for edge cases
   };
