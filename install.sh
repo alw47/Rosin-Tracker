@@ -57,8 +57,21 @@ while [[ $# -gt 0 ]]; do
             FRESH_INSTALL=true
             shift
             ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "OPTIONS:"
+            echo "  --fresh     Fresh installation (default) - resets database sequences to start from ID 1"
+            echo "  --update    Update existing installation - preserves existing data and sequences"
+            echo "  --help, -h  Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash"
+            echo "  curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash -s -- --update"
+            exit 0
+            ;;
         *)
-            print_warning "Unknown option: $1"
+            print_warning "Unknown option: $1. Use --help for usage information."
             shift
             ;;
     esac
@@ -239,12 +252,20 @@ print_success "Environment file created"
 
 # Setup database schema
 print_status "Setting up database schema..."
+# Source environment variables for database commands
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
 npm run db:push
 print_success "Database schema created"
 
 # Database initialization based on command line arguments
 if [ "$FRESH_INSTALL" = true ]; then
     print_status "Initializing database sequences for fresh install..."
+    # Source the environment file to make DATABASE_URL available
+    if [ -f ".env" ]; then
+        export $(grep -v '^#' .env | xargs)
+    fi
     npx tsx scripts/init-db.ts
     print_success "Database sequences initialized - new entries will start from ID 1"
 else
