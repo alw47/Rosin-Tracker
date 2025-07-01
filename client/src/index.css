@@ -74,24 +74,23 @@
   }
 }
 
-/* Recharts tooltip wrapper styling for better dark mode visibility */
+/* Recharts tooltip styling for better dark mode visibility */
 .recharts-tooltip-wrapper {
-  background-color: hsl(var(--muted)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  background: hsl(240, 5%, 18%) !important;
+  border: 1px solid hsl(240, 6%, 20%) !important;
   border-radius: 6px !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
 }
 
-/* Target the inner content div */
-.recharts-tooltip-wrapper > div {
-  background-color: hsl(var(--muted)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+.recharts-default-tooltip {
+  background: hsl(240, 5%, 18%) !important;
+  border: 1px solid hsl(240, 6%, 20%) !important;
   border-radius: 6px !important;
 }
 
-/* More specific targeting for recharts tooltip content */
-.recharts-default-tooltip {
-  background-color: hsl(var(--muted)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+/* More specific targeting for all tooltip elements */
+div[class*="recharts-tooltip"] {
+  background: hsl(240, 5%, 18%) !important;
+  border: 1px solid hsl(240, 6%, 20%) !important;
   border-radius: 6px !important;
 }
