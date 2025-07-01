@@ -1033,11 +1033,13 @@ export default function SettingsPage() {
               
               <div className="space-y-4">
                 {twoFactorQRCodeUrl && (
-                  <QRCodeComponent 
-                    value={twoFactorQRCodeUrl} 
-                    size={200}
-                    className="flex justify-center p-4 bg-muted rounded-lg"
-                  />
+                  <div className="flex justify-center p-4 bg-muted rounded-lg">
+                    <img 
+                      src={twoFactorQRCodeUrl} 
+                      alt="QR Code for 2FA Setup" 
+                      className="w-48 h-48 rounded border"
+                    />
+                  </div>
                 )}
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">Manual entry key:</p>
