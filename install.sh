@@ -233,28 +233,25 @@ if [ "$FRESH_INSTALL" = true ]; then
         read -s DB_PASSWORD_INPUT
         echo ""
         
-        # Strip any whitespace and check if truly empty
-        DB_PASSWORD_CLEAN=$(echo "$DB_PASSWORD_INPUT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        
-        if [ -z "$DB_PASSWORD_CLEAN" ]; then
-            # Empty password - auto-generate
+        # Simple length check - if zero length, auto-generate
+        if [ "${#DB_PASSWORD_INPUT}" -eq 0 ]; then
             DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
             print_success "Auto-generated secure password"
             break
+        fi
+        
+        # Non-empty password - ask for confirmation
+        echo -n "Confirm database password: "
+        read -s DB_PASSWORD_CONFIRM
+        echo ""
+        
+        if [ "$DB_PASSWORD_INPUT" = "$DB_PASSWORD_CONFIRM" ]; then
+            DB_PASSWORD="$DB_PASSWORD_INPUT"
+            print_success "Password confirmed"
+            break
         else
-            # Non-empty password - ask for confirmation
-            echo -n "Confirm database password: "
-            read -s DB_PASSWORD_CONFIRM
-            echo ""
-            
-            if [ "$DB_PASSWORD_INPUT" = "$DB_PASSWORD_CONFIRM" ]; then
-                DB_PASSWORD="$DB_PASSWORD_INPUT"
-                print_success "Password confirmed"
-                break
-            else
-                print_error "Passwords do not match. Please try again."
-                print_status "Hint: Leave password empty to auto-generate a secure password"
-            fi
+            print_error "Passwords do not match. Please try again."
+            print_status "Hint: Leave password empty to auto-generate a secure password"
         fi
     done
     
@@ -267,21 +264,19 @@ if [ "$FRESH_INSTALL" = true ]; then
         echo -n "Enable authentication for secure login? (y/N): "
         read -r AUTH_CHOICE
         
-        # Clean the input and check
-        AUTH_CHOICE_CLEAN=$(echo "$AUTH_CHOICE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        
-        if [ -z "$AUTH_CHOICE_CLEAN" ]; then
-            # Empty input - default to No
+        # Simple direct checks
+        if [ "${#AUTH_CHOICE}" -eq 0 ]; then
+            # Empty input (Enter key) - default to No
             AUTH_PASSWORD=""
             print_success "Authentication disabled - application runs without login"
             break
-        elif echo "$AUTH_CHOICE_CLEAN" | grep -qi "^y\|^yes$"; then
+        elif [ "$AUTH_CHOICE" = "y" ] || [ "$AUTH_CHOICE" = "Y" ] || [ "$AUTH_CHOICE" = "yes" ] || [ "$AUTH_CHOICE" = "YES" ]; then
             # Yes input
             AUTH_PASSWORD="YES"
             print_success "Authentication enabled - users will need to log in"
             print_status "You'll be able to create user accounts after installation"
             break
-        elif echo "$AUTH_CHOICE_CLEAN" | grep -qi "^n\|^no$"; then
+        elif [ "$AUTH_CHOICE" = "n" ] || [ "$AUTH_CHOICE" = "N" ] || [ "$AUTH_CHOICE" = "no" ] || [ "$AUTH_CHOICE" = "NO" ]; then
             # No input
             AUTH_PASSWORD=""
             print_success "Authentication disabled - application runs without login"
@@ -389,14 +384,14 @@ fi
 print_status "Creating environment configuration..."
 
 # Create base .env file
-cat > .env << 'ENVEOF'
+cat > .env << 'EOF'
 # Database Configuration
 # Session Security
 # Application Settings
 NODE_ENV=production
 PORT=5000
 # Authentication Settings
-ENVEOF
+EOF
 
 # Add variables with proper substitution
 echo "DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@localhost:5432/rosin_tracker" >> .env
