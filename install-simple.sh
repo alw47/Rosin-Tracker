@@ -830,6 +830,24 @@ else
                 sudo journalctl -u rosin-tracker --no-pager -n 30
                 print_error "Detailed application logs:"
                 sudo journalctl -u rosin-tracker --no-pager -n 50 -o cat
+                
+                # Test the built application directly to see the error
+                print_error "Testing built application directly..."
+                cd "$CURRENT_DIR"
+                if [ -f "dist/index.js" ]; then
+                    print_status "Running: NODE_ENV=production node dist/index.js"
+                    timeout 10s bash -c "NODE_ENV=production node dist/index.js" 2>&1 || true
+                else
+                    print_error "dist/index.js not found, build may have failed"
+                fi
+                
+                print_error "Environment variables test:"
+                echo "DATABASE_URL set: $([ -n "$DATABASE_URL" ] && echo "YES" || echo "NO")"
+                echo "AUTH_PASSWORD: ${AUTH_PASSWORD:-not set}"
+                echo "SESSION_SECRET: $([ -n "$SESSION_SECRET" ] && echo "set" || echo "not set")"
+                echo "Current directory: $(pwd)"
+                echo "Files in dist/: $(ls -la dist/ 2>/dev/null || echo "dist directory not found")"
+                
                 exit 1
             fi
         fi
