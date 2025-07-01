@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" fill="none">
+  <g fill="#4ade80">
+    <!-- Cannabis leaf petals -->
+    <!-- Center top petal -->
+    <path d="M50 5 c-3 0 -6 8 -6 20 s3 20 6 20 s6 -8 6 -20 s-3 -20 -6 -20 z"/>
+    
+    <!-- Left side petals -->
+    <path d="M35 15 c-8 -3 -15 0 -20 8 s-2 18 6 18 s15 -8 18 -15 s-1 -9 -4 -11 z"/>
+    <path d="M25 35 c-10 0 -18 5 -18 12 s8 12 18 12 s15 -5 15 -12 s-7 -12 -15 -12 z"/>
+    <path d="M35 55 c-8 3 -12 10 -8 18 s12 12 20 8 s10 -12 6 -20 s-15 -9 -18 -6 z"/>
+    
+    <!-- Right side petals -->
+    <path d="M65 15 c8 -3 15 0 20 8 s2 18 -6 18 s-15 -8 -18 -15 s1 -9 4 -11 z"/>
+    <path d="M75 35 c10 0 18 5 18 12 s-8 12 -18 12 s-15 -5 -15 -12 s7 -12 15 -12 z"/>
+    <path d="M65 55 c8 3 12 10 8 18 s-12 12 -20 8 s-10 -12 -6 -20 s15 -9 18 -6 z"/>
+    
+    <!-- Center stem and droplet -->
+    <path d="M47 65 h6 v20 h-6 z"/>
+    <circle cx="50" cy="100" r="15"/>
+    <path d="M50 85 c-5 0 -8 5 -8 10 s3 10 8 10 s8 -5 8 -10 s-3 -10 -8 -10 z"/>
+  </g>
+</svg>
