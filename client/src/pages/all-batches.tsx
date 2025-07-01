@@ -8,12 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { useUnits } from "@/contexts/units-context";
 import { formatMicronBags } from "@/lib/utils";
 import { Link } from "wouter";
-import { Search, Filter, Eye, Edit, Trash2, TestTube, Calendar, Percent, Weight } from "lucide-react";
+import { Search, Filter, Eye, Edit, Trash2, TestTube, Calendar, Percent, Weight, MinusCircle } from "lucide-react";
 
 export default function AllBatches() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const { convertWeight, convertTemperature, convertPressure, getWeightUnit, getTemperatureUnit, getPressureUnit, unitSystem } = useUnits();
+
+  // Helper function to display value or N/A with icon
+  const renderValueOrNA = (value: number | null | undefined, unit: string = "", decimals: number = 0) => {
+    if (value === null || value === undefined || value === 0) {
+      return (
+        <span className="flex items-center text-gray-400">
+          <MinusCircle className="h-3 w-3 mr-1" />
+          N/A
+        </span>
+      );
+    }
+    return `${value.toFixed(decimals)}${unit}`;
+  };
 
   const { data: batches, isLoading } = useQuery({
     queryKey: ["/api/rosin-presses"],
@@ -160,24 +173,18 @@ export default function AllBatches() {
 
                   {/* Additional Details */}
                   <div className="space-y-2 text-sm">
-                    {batch.temperature && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Temperature:</span>
-                        <span>{convertTemperature(batch.temperature, "metric").toFixed(0)}{getTemperatureUnit()}</span>
-                      </div>
-                    )}
-                    {batch.pressure && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Pressure:</span>
-                        <span>{convertPressure(batch.pressure).toFixed(0)} {getPressureUnit()}</span>
-                      </div>
-                    )}
-                    {batch.humidity && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Humidity:</span>
-                        <span>{batch.humidity}%</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Temperature:</span>
+                      <span>{renderValueOrNA(batch.temperature ? convertTemperature(batch.temperature, "metric") : batch.temperature, getTemperatureUnit(), 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Pressure:</span>
+                      <span>{renderValueOrNA(batch.pressure ? convertPressure(batch.pressure) : batch.pressure, ` ${getPressureUnit()}`, 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Humidity:</span>
+                      <span>{renderValueOrNA(batch.humidity, "%", 0)}</span>
+                    </div>
                     {batch.pressDuration && (
                       <div className="flex justify-between">
                         <span className="text-gray-500">Duration:</span>

@@ -11,7 +11,7 @@ import { useUnits } from "@/contexts/units-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime, formatDuration, formatMicronBags } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, ArrowLeft, Thermometer, Timer, Droplets, TestTube, Percent, Weight, X, Calendar, Clock, Check, AlertCircle } from "lucide-react";
+import { Plus, ArrowLeft, Thermometer, Timer, Droplets, TestTube, Percent, Weight, X, Calendar, Clock, Check, AlertCircle, MinusCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import type { RosinPress, CuringLog, CuringReminder } from "@shared/schema";
@@ -24,6 +24,19 @@ export default function BatchDetails() {
   const queryClient = useQueryClient();
   const [showCuringForm, setShowCuringForm] = useState(false);
   const [showReminderForm, setShowReminderForm] = useState(false);
+
+  // Helper function to display value or N/A with icon
+  const renderValueOrNA = (value: number | null | undefined, unit: string = "", decimals: number = 0) => {
+    if (value === null || value === undefined || value === 0) {
+      return (
+        <span className="flex items-center text-gray-400">
+          <MinusCircle className="h-3 w-3 mr-1" />
+          N/A
+        </span>
+      );
+    }
+    return `${value.toFixed(decimals)}${unit}`;
+  };
 
   const { data: batch, isLoading: batchLoading } = useQuery<RosinPress>({
     queryKey: [`/api/rosin-presses/${batchId}`],
@@ -243,24 +256,20 @@ export default function BatchDetails() {
             <CardTitle>Press Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {batch.temperature && (
-              <div className="flex items-center space-x-2">
-                <Thermometer className="h-4 w-4 text-red-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Temperature</p>
-                  <p className="font-semibold">{convertTemperature(batch.temperature, "metric").toFixed(0)}{getTemperatureUnit()}</p>
-                </div>
+            <div className="flex items-center space-x-2">
+              <Thermometer className="h-4 w-4 text-red-600" />
+              <div>
+                <p className="text-sm text-gray-500">Temperature</p>
+                <p className="font-semibold">{renderValueOrNA(batch.temperature ? convertTemperature(batch.temperature, "metric") : batch.temperature, getTemperatureUnit(), 0)}</p>
               </div>
-            )}
-            {batch.pressure && (
-              <div className="flex items-center space-x-2">
-                <Weight className="h-4 w-4 text-yellow-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Pressure</p>
-                  <p className="font-semibold">{convertPressure(batch.pressure).toFixed(0)} {getPressureUnit()}</p>
-                </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Weight className="h-4 w-4 text-yellow-600" />
+              <div>
+                <p className="text-sm text-gray-500">Pressure</p>
+                <p className="font-semibold">{renderValueOrNA(batch.pressure ? convertPressure(batch.pressure) : batch.pressure, ` ${getPressureUnit()}`, 0)}</p>
               </div>
-            )}
+            </div>
             {batch.pressSize && (
               <div className="flex items-center space-x-2">
                 <TestTube className="h-4 w-4 text-indigo-600" />
@@ -279,15 +288,13 @@ export default function BatchDetails() {
                 </div>
               </div>
             )}
-            {batch.humidity && (
-              <div className="flex items-center space-x-2">
-                <Droplets className="h-4 w-4 text-cyan-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Humidity</p>
-                  <p className="font-semibold">{batch.humidity}%</p>
-                </div>
+            <div className="flex items-center space-x-2">
+              <Droplets className="h-4 w-4 text-cyan-600" />
+              <div>
+                <p className="text-sm text-gray-500">Humidity</p>
+                <p className="font-semibold">{renderValueOrNA(batch.humidity, "%", 0)}</p>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>
