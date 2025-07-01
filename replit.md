@@ -233,6 +233,7 @@ Changelog:
 - July 1, 2025. Updated all documentation with correct GitHub repository URL (alw47/Rosin-Tracker) and comprehensive 2FA authentication setup instructions
 - July 1, 2025. CRITICAL FIX: Resolved database wiping bug in installation script --update mode that was destroying existing data during schema pushes
 - July 1, 2025. Implemented intelligent schema update system with automatic backup/restore protection for safe database updates during application upgrades
+- July 1, 2025. ENHANCED SECURITY: Added interactive database credential setup during fresh installation with custom username/password prompts
 ```
 
 ## User Preferences

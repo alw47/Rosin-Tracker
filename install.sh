@@ -208,33 +208,82 @@ print_success "Dependencies installed"
 if [ "$FRESH_INSTALL" = true ]; then
     print_status "Setting up PostgreSQL database (FRESH INSTALL - will reset data)..."
     
-    # Generate random passwords
-    DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+    # Prompt for database credentials during fresh install
+    echo ""
+    print_status "Setting up database credentials for fresh installation..."
+    echo ""
+    
+    # Prompt for database username
+    while true; do
+        echo -n "Enter database username (default: rosin_user): "
+        read -r DB_USERNAME
+        DB_USERNAME=${DB_USERNAME:-rosin_user}
+        
+        # Validate username (basic validation)
+        if [[ "$DB_USERNAME" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
+            break
+        else
+            print_error "Invalid username. Use only letters, numbers, and underscores. Must start with a letter."
+        fi
+    done
+    
+    # Prompt for database password
+    while true; do
+        echo -n "Enter database password (leave empty to auto-generate): "
+        read -s DB_PASSWORD_INPUT
+        echo ""
+        
+        if [ -z "$DB_PASSWORD_INPUT" ]; then
+            DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+            print_success "Auto-generated secure password"
+            break
+        else
+            # Confirm password
+            echo -n "Confirm database password: "
+            read -s DB_PASSWORD_CONFIRM
+            echo ""
+            
+            if [ "$DB_PASSWORD_INPUT" = "$DB_PASSWORD_CONFIRM" ]; then
+                DB_PASSWORD="$DB_PASSWORD_INPUT"
+                print_success "Password confirmed"
+                break
+            else
+                print_error "Passwords do not match. Please try again."
+            fi
+        fi
+    done
+    
+    # Generate session secret
     SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
+    
+    print_success "Database credentials configured"
+    print_status "Username: $DB_USERNAME"
+    print_status "Password: [hidden - will be saved to .env file]"
+    echo ""
 
     # Setup database - handle existing database/user
     sudo -u postgres psql << EOF
 -- Drop existing database and user if they exist to start fresh
 DROP DATABASE IF EXISTS rosin_tracker;
-DROP USER IF EXISTS rosin_user;
+DROP USER IF EXISTS $DB_USERNAME;
 
 -- Create new database and user
 CREATE DATABASE rosin_tracker;
-CREATE USER rosin_user WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
-GRANT ALL PRIVILEGES ON DATABASE rosin_tracker TO rosin_user;
-ALTER DATABASE rosin_tracker OWNER TO rosin_user;
+CREATE USER $DB_USERNAME WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
+GRANT ALL PRIVILEGES ON DATABASE rosin_tracker TO $DB_USERNAME;
+ALTER DATABASE rosin_tracker OWNER TO $DB_USERNAME;
 
 -- Grant additional permissions
 \c rosin_tracker
-GRANT ALL PRIVILEGES ON SCHEMA public TO rosin_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rosin_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rosin_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO rosin_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO rosin_user;
+GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USERNAME;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USERNAME;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USERNAME;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USERNAME;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USERNAME;
 \q
 EOF
 
-    print_success "Database created with user 'rosin_user'"
+    print_success "Database created with user '$DB_USERNAME'"
 else
     print_status "Updating installation - preserving existing database..."
     
@@ -242,19 +291,23 @@ else
     if [ -f ".env" ]; then
         print_status "Using existing environment configuration..."
         # Extract existing credentials from .env
-        DB_PASSWORD=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/rosin_user:\([^@]*\)@.*/\1/')
+        DB_USERNAME=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/\([^:]*\):.*/\1/')
+        DB_PASSWORD=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/')
         SESSION_SECRET=$(grep "SESSION_SECRET" .env | cut -d'=' -f2)
         
-        if [ -z "$DB_PASSWORD" ] || [ -z "$SESSION_SECRET" ]; then
+        if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$SESSION_SECRET" ]; then
             print_warning "Could not extract existing credentials from .env file"
-            print_status "Generating new credentials..."
-            DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-            SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
+            print_status "Using default credentials..."
+            DB_USERNAME=${DB_USERNAME:-rosin_user}
+            DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)}
+            SESSION_SECRET=${SESSION_SECRET:-$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)}
         else
             print_success "Existing credentials found and preserved"
+            print_status "Username: $DB_USERNAME"
         fi
     else
-        print_warning "No existing .env file found, generating new credentials..."
+        print_warning "No existing .env file found, using default credentials..."
+        DB_USERNAME="rosin_user"
         DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
     fi
@@ -265,23 +318,23 @@ else
 SELECT 'CREATE DATABASE rosin_tracker' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'rosin_tracker')\gexec
 DO \$\$
 BEGIN
-   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'rosin_user') THEN
-      CREATE USER rosin_user WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '$DB_USERNAME') THEN
+      CREATE USER $DB_USERNAME WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
    END IF;
 END
 \$\$;
 
 -- Grant permissions
-GRANT ALL PRIVILEGES ON DATABASE rosin_tracker TO rosin_user;
-ALTER DATABASE rosin_tracker OWNER TO rosin_user;
+GRANT ALL PRIVILEGES ON DATABASE rosin_tracker TO $DB_USERNAME;
+ALTER DATABASE rosin_tracker OWNER TO $DB_USERNAME;
 
 -- Grant additional permissions
 \c rosin_tracker
-GRANT ALL PRIVILEGES ON SCHEMA public TO rosin_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rosin_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rosin_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO rosin_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO rosin_user;
+GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USERNAME;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USERNAME;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USERNAME;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USERNAME;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USERNAME;
 \q
 EOF
 
@@ -292,7 +345,7 @@ fi
 print_status "Creating environment configuration..."
 cat > .env << EOF
 # Database Configuration
-DATABASE_URL=postgresql://rosin_user:$DB_PASSWORD@localhost:5432/rosin_tracker
+DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@localhost:5432/rosin_tracker
 
 # Session Security
 SESSION_SECRET=$SESSION_SECRET
