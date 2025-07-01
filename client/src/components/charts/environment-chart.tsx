@@ -7,12 +7,17 @@ interface EnvironmentChartProps {
 }
 
 export function EnvironmentChart({ startMaterialFilter = "all" }: EnvironmentChartProps) {
-  const { data: trends, isLoading } = useQuery({
+  const { data: trends, isLoading, error } = useQuery({
     queryKey: ["/api/analytics/environment-trends", startMaterialFilter],
-    queryFn: () => {
+    queryFn: async () => {
       const params = startMaterialFilter !== "all" ? `?startMaterial=${encodeURIComponent(startMaterialFilter)}` : "";
-      return fetch(`/api/analytics/environment-trends${params}`).then(res => res.json());
+      const response = await fetch(`/api/analytics/environment-trends${params}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
     },
+    retry: false,
   });
   
   const { convertTemperature, getTemperatureUnit } = useUnits();
@@ -25,7 +30,7 @@ export function EnvironmentChart({ startMaterialFilter = "all" }: EnvironmentCha
     );
   }
 
-  if (!trends || trends.length === 0) {
+  if (error || !trends || !Array.isArray(trends) || trends.length === 0) {
     return (
       <div className="w-full h-64 flex items-center justify-center text-gray-500">
         No environment data available

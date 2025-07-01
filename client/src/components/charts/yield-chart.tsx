@@ -6,12 +6,17 @@ interface YieldChartProps {
 }
 
 export function YieldChart({ startMaterialFilter = "all" }: YieldChartProps) {
-  const { data: trends, isLoading } = useQuery({
+  const { data: trends, isLoading, error } = useQuery({
     queryKey: ["/api/analytics/yield-trends", startMaterialFilter],
-    queryFn: () => {
+    queryFn: async () => {
       const params = startMaterialFilter !== "all" ? `?startMaterial=${encodeURIComponent(startMaterialFilter)}` : "";
-      return fetch(`/api/analytics/yield-trends${params}`).then(res => res.json());
+      const response = await fetch(`/api/analytics/yield-trends${params}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
     },
+    retry: false,
   });
 
   if (isLoading) {
@@ -22,7 +27,7 @@ export function YieldChart({ startMaterialFilter = "all" }: YieldChartProps) {
     );
   }
 
-  if (!trends || trends.length === 0) {
+  if (error || !trends || !Array.isArray(trends) || trends.length === 0) {
     return (
       <div className="w-full h-64 flex items-center justify-center text-gray-500">
         No yield data available
