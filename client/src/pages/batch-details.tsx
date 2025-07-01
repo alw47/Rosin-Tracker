@@ -315,13 +315,13 @@ export default function BatchDetails() {
               {batch.pictures.map((picture: string, index: number) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
-                    <div className="cursor-pointer group relative">
+                    <div className="cursor-pointer group relative w-full max-w-[200px] max-h-[200px] aspect-square overflow-hidden rounded-lg">
                       <img
                         src={picture}
                         alt={`Batch ${batch.id} - Image ${index + 1}`}
-                        className="rounded-lg object-cover w-full max-w-[200px] max-h-[200px] aspect-square transition-transform group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
                         <div className="bg-black bg-opacity-70 rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <span className="text-white text-xs font-medium whitespace-nowrap">
                             Click to enlarge
@@ -427,13 +427,13 @@ export default function BatchDetails() {
                         {log.pictures.map((picture: string, index: number) => (
                           <Dialog key={index}>
                             <DialogTrigger asChild>
-                              <div className="cursor-pointer group relative">
+                              <div className="cursor-pointer group relative w-full aspect-square overflow-hidden rounded">
                                 <img
                                   src={picture}
                                   alt={`Curing log ${log.id} - Image ${index + 1}`}
-                                  className="rounded object-cover w-full aspect-square transition-transform group-hover:scale-105"
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                 />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
                                   <div className="bg-black bg-opacity-70 rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <span className="text-white text-xs font-medium whitespace-nowrap">
                                       Click to enlarge

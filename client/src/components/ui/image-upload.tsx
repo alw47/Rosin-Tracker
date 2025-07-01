@@ -107,13 +107,13 @@ export function ImageUpload({ value = [], onChange, maxImages = 5, className }: 
             <div key={index} className="relative group">
               <Dialog>
                 <DialogTrigger asChild>
-                  <div className="cursor-pointer group relative">
+                  <div className="cursor-pointer group relative w-full max-w-[200px] max-h-[200px] aspect-square overflow-hidden rounded-lg">
                     <img
                       src={image}
                       alt={`Upload ${index + 1}`}
-                      className="rounded-lg object-cover w-full max-w-[200px] max-h-[200px] aspect-square transition-transform group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
                       <div className="bg-black bg-opacity-70 rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-white text-xs font-medium whitespace-nowrap">
                           Click to enlarge
