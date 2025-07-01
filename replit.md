@@ -244,6 +244,7 @@ Changelog:
 - July 1, 2025. CRITICAL PORT CONFLICT FIX: Enhanced installation script to detect port conflicts and gracefully handle development environments instead of failing systemd service startup
 - July 1, 2025. COMPREHENSIVE PORT CONFLICT HANDLING: Fixed all verification sections to properly skip service checks when port conflicts prevent service startup, ensuring reliable installation in development environments
 - July 1, 2025. CRITICAL LOGIC FIX: Corrected inverted port detection logic that was incorrectly identifying occupied ports as available, resolving installation failures in development environments
+- July 1, 2025. SYSTEMD SERVICE FIX: Updated systemd service configuration to include build step, proper node/npm paths, and environment file loading for production deployment
 ```
 
 ## User Preferences

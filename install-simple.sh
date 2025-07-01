@@ -595,6 +595,24 @@ fi
 
 # Create systemd service file with error checking
 print_status "Creating systemd service file..."
+
+# Get the full path to node and npm
+NODE_PATH=$(which node)
+NPM_PATH=$(which npm)
+
+if [ -z "$NODE_PATH" ]; then
+    print_error "Node.js not found in PATH"
+    exit 1
+fi
+
+if [ -z "$NPM_PATH" ]; then
+    print_error "npm not found in PATH"
+    exit 1
+fi
+
+print_status "Using Node.js at: $NODE_PATH"
+print_status "Using npm at: $NPM_PATH"
+
 if ! sudo tee /etc/systemd/system/rosin-tracker.service > /dev/null << EOF
 [Unit]
 Description=Rosin Tracker Application
@@ -606,8 +624,10 @@ Type=simple
 User=$USER
 WorkingDirectory=$CURRENT_DIR
 Environment=NODE_ENV=production
-Environment=PATH=/usr/bin:/usr/local/bin
-ExecStart=/usr/bin/npm start
+Environment=PATH=$PATH
+EnvironmentFile=$CURRENT_DIR/.env
+ExecStartPre=$NPM_PATH run build
+ExecStart=$NODE_PATH dist/index.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
