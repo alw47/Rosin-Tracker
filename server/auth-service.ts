@@ -328,6 +328,3 @@ export class AuthService {
     return !user;
   }
 }
-
-// Export for middleware
-export { AuthService };

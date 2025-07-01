@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { AuthService } from "./auth-service";
 import { insertRosinPressSchema, insertCuringLogSchema, insertCuringReminderSchema } from "@shared/schema";
 import { z } from "zod";
 import session from "express-session";
@@ -18,13 +19,13 @@ let authSettings = {
   twoFactorEnabled: false,
 };
 
-// Check if authentication is enabled
+// Check if authentication is enabled (environment-based)
 const isAuthEnabled = () => {
-  return authSettings.password !== null && authSettings.password.length > 0;
+  return process.env.AUTH_PASSWORD !== undefined && process.env.AUTH_PASSWORD.length > 0;
 };
 
-// Authentication middleware
-const requireAuth = (req: any, res: any, next: any) => {
+// Authentication middleware using AuthService
+const requireAuth = async (req: any, res: any, next: any) => {
   console.log(`Auth check for ${req.method} ${req.path} - Auth enabled: ${isAuthEnabled()}`);
   
   if (!isAuthEnabled()) {
@@ -32,13 +33,30 @@ const requireAuth = (req: any, res: any, next: any) => {
     return next(); // Skip auth if not enabled
   }
   
-  if (!req.session.authenticated) {
-    console.log("Authentication required but not authenticated");
+  if (!req.session.userId) {
+    console.log("Authentication required but no user session");
     return res.status(401).json({ message: "Authentication required" });
   }
-  
-  console.log("Authentication successful");
-  next();
+
+  try {
+    const user = await AuthService.findUserById(req.session.userId);
+    if (!user) {
+      console.log("User not found for session");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    // Check if account is locked
+    if (await AuthService.isAccountLocked(user)) {
+      console.log("Account is locked");
+      return res.status(423).json({ message: "Account is locked" });
+    }
+
+    console.log("Authentication successful");
+    next();
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+    res.status(500).json({ message: "Authentication error" });
+  }
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -57,39 +75,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  // Authentication routes
+  // Authentication routes using AuthService
   app.get("/api/auth/status", (req, res) => {
     res.json({ enabled: isAuthEnabled() });
   });
 
-  app.get("/api/auth/user", (req: any, res) => {
+  app.get("/api/auth/user", async (req: any, res) => {
     if (!isAuthEnabled()) {
-      return res.json({ authenticated: true, user: { id: "default" } });
+      return res.json({ authenticated: true, user: { id: "default", email: "default@localhost" } });
     }
     
-    if (!req.session.authenticated) {
+    if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     
-    res.json({ authenticated: true, user: { id: "authenticated" } });
+    try {
+      const user = await AuthService.findUserById(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      res.json({ 
+        authenticated: true, 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          username: user.username,
+          twoFactorEnabled: user.twoFactorEnabled 
+        } 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
   });
 
-  app.post("/api/auth/login", (req: any, res) => {
+  app.post("/api/auth/login", async (req: any, res) => {
     if (!isAuthEnabled()) {
       return res.status(400).json({ message: "Authentication is not enabled" });
     }
     
-    const { password } = req.body;
+    const { emailOrUsername, password, twoFactorCode } = req.body;
     
-    if (!password || password !== authSettings.password) {
-      return res.status(401).json({ message: "Invalid password" });
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ message: "Email/username and password are required" });
     }
     
-    req.session.authenticated = true;
-    res.json({ success: true });
+    try {
+      const user = await AuthService.findUserByEmailOrUsername(emailOrUsername);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      if (await AuthService.isAccountLocked(user)) {
+        return res.status(423).json({ message: "Account is locked due to too many failed attempts" });
+      }
+      
+      const validPassword = await AuthService.verifyPassword(password, user.passwordHash);
+      if (!validPassword) {
+        await AuthService.incrementFailedAttempts(user.id);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Check 2FA if enabled
+      if (user.twoFactorEnabled) {
+        if (!twoFactorCode) {
+          return res.status(400).json({ message: "Two-factor authentication code is required" });
+        }
+        
+        const valid2FA = await AuthService.verify2FA(user.id, twoFactorCode);
+        if (!valid2FA) {
+          return res.status(401).json({ message: "Invalid two-factor authentication code" });
+        }
+      }
+      
+      await AuthService.resetFailedAttempts(user.id);
+      await AuthService.updateLastLogin(user.id);
+      
+      req.session.userId = user.id;
+      req.session.authenticated = true;
+      
+      res.json({ success: true, requiresTwoFactor: false });
+    } catch (error) {
+      res.status(500).json({ message: "Login failed" });
+    }
   });
 
-  app.post("/api/auth/logout", (req: any, res) => {
+  app.post("/api/auth/logout", async (req: any, res) => {
+    if (req.session.userId) {
+      try {
+        await AuthService.deleteAllUserSessions(req.session.userId);
+      } catch (error) {
+        console.error("Failed to delete user sessions:", error);
+      }
+    }
+    
     req.session.destroy((err: any) => {
       if (err) {
         return res.status(500).json({ message: "Failed to logout" });
@@ -98,114 +177,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Settings routes for authentication management
-  app.get("/api/settings/security", (req, res) => {
-    res.json({
-      authEnabled: isAuthEnabled(),
-      twoFactorEnabled: authSettings.twoFactorEnabled,
-      sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
-    });
-  });
-
-  app.post("/api/settings/auth", (req: any, res) => {
-    const { enableAuth, password, currentPassword } = req.body;
-
-    if (enableAuth) {
-      // Enable authentication with new password
-      if (!password || password.length < 8) {
-        return res.status(400).json({ message: "Password must be at least 8 characters long" });
-      }
-      authSettings.password = password;
-      res.json({ success: true, message: "Authentication enabled" });
-    } else {
-      // Disable authentication
-      if (!isAuthEnabled()) {
-        return res.status(400).json({ message: "Authentication is already disabled" });
+  // Settings routes for authentication management using AuthService
+  app.get("/api/settings/security", async (req: any, res) => {
+    try {
+      let twoFactorEnabled = false;
+      
+      if (isAuthEnabled() && req.session.userId) {
+        const user = await AuthService.findUserById(req.session.userId);
+        twoFactorEnabled = user?.twoFactorEnabled || false;
       }
       
-      if (!currentPassword || currentPassword !== authSettings.password) {
-        return res.status(401).json({ message: "Invalid current password" });
-      }
-      
-      authSettings.password = null;
-      authSettings.twoFactorEnabled = false;
-      authSettings.twoFactorSecret = null;
-      
-      // Clear all sessions
-      req.session.destroy(() => {});
-      
-      res.json({ success: true, message: "Authentication disabled" });
+      res.json({
+        authEnabled: isAuthEnabled(),
+        twoFactorEnabled,
+        sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch security settings" });
     }
   });
 
-  // 2FA Setup Route
-  app.post("/api/settings/2fa/setup", (req: any, res) => {
+  app.post("/api/settings/auth", async (req: any, res) => {
+    const { enableAuth, password, currentPassword, email, username } = req.body;
+
+    try {
+      if (enableAuth) {
+        // Enable authentication with new admin user
+        if (!password || password.length < 8) {
+          return res.status(400).json({ message: "Password must be at least 8 characters long" });
+        }
+        
+        if (!email || !username) {
+          return res.status(400).json({ message: "Email and username are required" });
+        }
+        
+        // Check if users already exist
+        const existingUser = await AuthService.findUserByEmailOrUsername(email);
+        if (existingUser) {
+          return res.status(400).json({ message: "User with this email or username already exists" });
+        }
+        
+        // Create the admin user
+        const user = await AuthService.createUser(email, username, password);
+        authSettings.password = "enabled"; // Flag that auth is enabled
+        
+        res.json({ success: true, message: "Authentication enabled and admin user created" });
+      } else {
+        // Disable authentication
+        if (!isAuthEnabled()) {
+          return res.status(400).json({ message: "Authentication is already disabled" });
+        }
+        
+        if (!req.session.userId) {
+          return res.status(401).json({ message: "Not authenticated" });
+        }
+        
+        const user = await AuthService.findUserById(req.session.userId);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
+        
+        if (!currentPassword || !await AuthService.verifyPassword(currentPassword, user.passwordHash)) {
+          return res.status(401).json({ message: "Invalid current password" });
+        }
+        
+        authSettings.password = null;
+        
+        // Clear all sessions
+        req.session.destroy(() => {});
+        
+        res.json({ success: true, message: "Authentication disabled" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update authentication settings" });
+    }
+  });
+
+  // 2FA Setup Route using AuthService
+  app.post("/api/settings/2fa/setup", async (req: any, res) => {
     if (!isAuthEnabled()) {
       return res.status(400).json({ message: "Authentication must be enabled first" });
     }
 
-    const secret = speakeasy.generateSecret({
-      name: "Rosin Tracker",
-      issuer: "Rosin Tracker",
-      length: 32,
-    });
-
-    authSettings.twoFactorSecret = secret.base32;
-
-    res.json({
-      secret: secret.base32,
-      qrCodeUrl: secret.otpauth_url,
-    });
-  });
-
-  // Enable 2FA Route
-  app.post("/api/settings/2fa/enable", (req: any, res) => {
-    const { code, secret } = req.body;
-
-    if (!secret || !code) {
-      return res.status(400).json({ message: "Secret and verification code are required" });
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: secret,
-      encoding: 'base32',
-      token: code,
-      window: 2
-    });
-
-    if (!verified) {
-      return res.status(401).json({ message: "Invalid verification code" });
+    try {
+      const { secret, qrCodeUrl } = await AuthService.setup2FA(req.session.userId);
+      res.json({ secret, qrCodeUrl });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to setup 2FA" });
     }
-
-    authSettings.twoFactorEnabled = true;
-    authSettings.twoFactorSecret = secret;
-
-    res.json({ success: true, message: "Two-factor authentication enabled" });
   });
 
-  // Disable 2FA Route
-  app.post("/api/settings/2fa/disable", (req: any, res) => {
+  // Enable 2FA Route using AuthService
+  app.post("/api/settings/2fa/enable", async (req: any, res) => {
     const { code } = req.body;
 
-    if (!authSettings.twoFactorEnabled || !authSettings.twoFactorSecret) {
-      return res.status(400).json({ message: "Two-factor authentication is not enabled" });
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: authSettings.twoFactorSecret,
-      encoding: 'base32',
-      token: code,
-      window: 2
-    });
-
-    if (!verified) {
-      return res.status(401).json({ message: "Invalid verification code" });
+    if (!code) {
+      return res.status(400).json({ message: "Verification code is required" });
     }
 
-    authSettings.twoFactorEnabled = false;
-    authSettings.twoFactorSecret = null;
+    try {
+      const verified = await AuthService.verify2FASetup(req.session.userId, code);
+      if (!verified) {
+        return res.status(401).json({ message: "Invalid verification code" });
+      }
 
-    res.json({ success: true, message: "Two-factor authentication disabled" });
+      res.json({ success: true, message: "Two-factor authentication enabled" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+
+  // Disable 2FA Route using AuthService
+  app.post("/api/settings/2fa/disable", async (req: any, res) => {
+    const { code } = req.body;
+
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    if (!code) {
+      return res.status(400).json({ message: "Verification code is required" });
+    }
+
+    try {
+      const disabled = await AuthService.disable2FA(req.session.userId, code);
+      if (!disabled) {
+        return res.status(401).json({ message: "Invalid verification code or 2FA not enabled" });
+      }
+
+      res.json({ success: true, message: "Two-factor authentication disabled" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to disable 2FA" });
+    }
   });
 
   // Health check endpoint (no auth required)

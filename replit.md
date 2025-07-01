@@ -212,6 +212,10 @@ Changelog:
 - July 1, 2025. Implemented frequently used strains feature with localStorage persistence and quick-select badges
 - July 1, 2025. Fixed micron bag size conversion issues with improved detection logic and validation
 - July 1, 2025. Enhanced recent batches dashboard module with comprehensive press details and better space utilization
+- July 1, 2025. MAJOR ARCHITECTURE UPDATE: Replaced basic authentication with comprehensive AuthService system
+- July 1, 2025. Integrated enterprise-grade authentication with bcrypt hashing, account lockout, session management, and 2FA support
+- July 1, 2025. Updated all authentication routes and middleware to use new AuthService with proper error handling
+- July 1, 2025. Fixed authentication property references (password vs passwordHash) for new user schema compatibility
 ```
 
 ## User Preferences
