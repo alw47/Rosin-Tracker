@@ -6,27 +6,31 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: any | null;
-  login: (password: string) => Promise<void>;
+  login: (emailOrUsername: string, password: string, twoFactorCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   authEnabled: boolean;
+  needsSetup: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authEnabled, setAuthEnabled] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const queryClient = useQueryClient();
 
-  // Check if auth is enabled
+  // Check if auth is enabled and if setup is needed
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const response = await fetch("/api/auth/status");
         const data = await response.json();
         setAuthEnabled(data.enabled);
+        setNeedsSetup(data.needsSetup || false);
       } catch (error) {
         console.error("Failed to check auth status:", error);
         setAuthEnabled(false);
+        setNeedsSetup(false);
       }
     };
     checkAuthStatus();
@@ -40,8 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async (password: string) => {
-      await apiRequest("/api/auth/login", "POST", { password });
+    mutationFn: async ({ emailOrUsername, password, twoFactorCode }: { 
+      emailOrUsername: string; 
+      password: string; 
+      twoFactorCode?: string; 
+    }) => {
+      await apiRequest("/api/auth/login", "POST", { 
+        emailOrUsername, 
+        password, 
+        twoFactorCode 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -65,9 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading: authEnabled ? isLoading : false,
         user,
-        login: loginMutation.mutateAsync,
+        login: async (emailOrUsername: string, password: string, twoFactorCode?: string) => {
+          await loginMutation.mutateAsync({ emailOrUsername, password, twoFactorCode });
+        },
         logout: logoutMutation.mutateAsync,
         authEnabled,
+        needsSetup,
       }}
     >
       {children}
