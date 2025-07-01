@@ -90,5 +90,5 @@
 
 /* Target the specific tooltip cursor background */
 .recharts-tooltip-cursor {
-  fill: hsl(240, 5%, 25%) !important;
+  fill: transparent !important;
 }
