@@ -627,6 +627,15 @@ if [ ! -f "dist/index.js" ]; then
     exit 1
 fi
 
+# Apply post-build fixes if needed
+if [ -f "dist/index.js" ]; then
+    if grep -q "import\.meta\.dirname" dist/index.js; then
+        print_status "Applying post-build Node.js compatibility fixes..."
+        sed -i 's/import\.meta\.dirname/path.dirname(new URL(import.meta.url).pathname)/g' dist/index.js
+        print_success "Applied post-build fixes"
+    fi
+fi
+
 print_success "Application built successfully"
 
 # Create systemd service file with error checking
