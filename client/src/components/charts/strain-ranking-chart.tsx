@@ -23,6 +23,10 @@ interface StrainPerformance {
 export function StrainRankingChart({ startMaterialFilter = "all" }: StrainRankingProps) {
   const { data: rankings, isLoading, error } = useQuery<StrainPerformance[]>({
     queryKey: ["/api/analytics/strain-performance-ranking", startMaterialFilter],
+    queryFn: () => {
+      const params = startMaterialFilter !== "all" ? `?startMaterial=${encodeURIComponent(startMaterialFilter)}` : "";
+      return fetch(`/api/analytics/strain-performance-ranking${params}`).then(res => res.json());
+    },
     enabled: true,
   });
 
