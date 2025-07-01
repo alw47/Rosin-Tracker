@@ -205,6 +205,9 @@ Changelog:
 - July 1, 2025. Fixed critical micron bag formatting issue - now stores raw dimensions without units for better reliability
 - July 1, 2025. Changed default temperature from 180°F to 90°C for more practical rosin pressing operations
 - July 1, 2025. Project prepared for initial GitHub release with cleaned documentation and stable feature set
+- July 1, 2025. Added comprehensive multi-strain support for hash made from different cannabis varieties
+- July 1, 2025. Enhanced form validation to allow 0 values as N/A indicators for equipment measurements
+- July 1, 2025. Fixed installation script with proper fresh/update modes and environment variable handling
 ```
 
 ## User Preferences

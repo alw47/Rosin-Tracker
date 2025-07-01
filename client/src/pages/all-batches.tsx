@@ -19,10 +19,13 @@ export default function AllBatches() {
     queryKey: ["/api/rosin-presses"],
   });
 
-  const filteredBatches = batches?.filter((batch: any) =>
-    batch.strain.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    batch.startMaterial.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredBatches = batches?.filter((batch: any) => {
+    const strainText = Array.isArray(batch.strain) 
+      ? batch.strain.join(" ").toLowerCase() 
+      : batch.strain.toLowerCase();
+    return strainText.includes(searchQuery.toLowerCase()) ||
+           batch.startMaterial.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const sortedBatches = filteredBatches?.sort((a: any, b: any) => {
     switch (sortBy) {
