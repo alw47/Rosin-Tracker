@@ -233,6 +233,9 @@ if [ "$FRESH_INSTALL" = true ]; then
         read -s DB_PASSWORD_INPUT
         echo ""
         
+        # Debug: Check if password is truly empty (trim whitespace)
+        DB_PASSWORD_INPUT=$(echo "$DB_PASSWORD_INPUT" | tr -d '[:space:]')
+        
         if [ -z "$DB_PASSWORD_INPUT" ]; then
             DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
             print_success "Auto-generated secure password"
@@ -243,12 +246,16 @@ if [ "$FRESH_INSTALL" = true ]; then
             read -s DB_PASSWORD_CONFIRM
             echo ""
             
+            # Trim whitespace from confirmation too
+            DB_PASSWORD_CONFIRM=$(echo "$DB_PASSWORD_CONFIRM" | tr -d '[:space:]')
+            
             if [ "$DB_PASSWORD_INPUT" = "$DB_PASSWORD_CONFIRM" ]; then
                 DB_PASSWORD="$DB_PASSWORD_INPUT"
                 print_success "Password confirmed"
                 break
             else
                 print_error "Passwords do not match. Please try again."
+                print_status "Hint: Leave password empty to auto-generate a secure password"
             fi
         fi
     done
@@ -261,22 +268,29 @@ if [ "$FRESH_INSTALL" = true ]; then
     while true; do
         echo -n "Enable authentication for secure login? (y/N): "
         read -r AUTH_CHOICE
-        AUTH_CHOICE=${AUTH_CHOICE:-N}
         
-        case "${AUTH_CHOICE,,}" in
+        # Default to N if empty
+        if [ -z "$AUTH_CHOICE" ]; then
+            AUTH_CHOICE="N"
+        fi
+        
+        # Convert to lowercase for comparison
+        AUTH_CHOICE_LOWER=$(echo "$AUTH_CHOICE" | tr '[:upper:]' '[:lower:]')
+        
+        case "$AUTH_CHOICE_LOWER" in
             y|yes)
                 AUTH_PASSWORD="YES"
                 print_success "Authentication enabled - users will need to log in"
                 print_status "You'll be able to create user accounts after installation"
                 break
                 ;;
-            n|no|"")
+            n|no)
                 AUTH_PASSWORD=""
                 print_success "Authentication disabled - application runs without login"
                 break
                 ;;
             *)
-                print_error "Please enter 'y' for yes or 'n' for no"
+                print_error "Please enter 'y' for yes or 'n' for no (or press Enter for default: no)"
                 ;;
         esac
     done
@@ -389,8 +403,14 @@ NODE_ENV=production
 PORT=5000
 
 # Authentication Settings
-$([ -n "$AUTH_PASSWORD" ] && echo "AUTH_PASSWORD=YES  # Email-based authentication with 2FA support enabled" || echo "# AUTH_PASSWORD=YES  # Set to \"YES\" to enable email-based authentication with 2FA support")
 EOF
+
+# Add authentication setting conditionally
+if [ -n "$AUTH_PASSWORD" ]; then
+    echo "AUTH_PASSWORD=YES  # Email-based authentication with 2FA support enabled" >> .env
+else
+    echo "# AUTH_PASSWORD=YES  # Set to \"YES\" to enable email-based authentication with 2FA support" >> .env
+fi
 
 print_success "Environment file created"
 
