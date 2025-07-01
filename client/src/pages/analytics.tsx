@@ -363,9 +363,8 @@ export default function Analytics() {
                       />
                       <Bar 
                         dataKey="avgYield" 
-                        fill="#8884d8" 
+                        fill="#6366f1" 
                         radius={[2, 2, 0, 0]}
-                        className="hover:opacity-80 transition-opacity"
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -414,15 +413,13 @@ export default function Analytics() {
                   <Legend />
                   <Bar 
                     dataKey="avgYield" 
-                    fill="#8884d8" 
-                    name="Average Yield %" 
-                    className="hover:opacity-80 transition-opacity"
+                    fill="#6366f1" 
+                    name="Average Yield %"
                   />
                   <Bar 
                     dataKey="totalOutput" 
-                    fill="#82ca9d" 
-                    name="Total Output (g)" 
-                    className="hover:opacity-80 transition-opacity"
+                    fill="#10b981" 
+                    name="Total Output (g)"
                   />
                 </BarChart>
               </ResponsiveContainer>

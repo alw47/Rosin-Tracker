@@ -69,13 +69,6 @@ export function EnvironmentChart({ startMaterialFilter = "all" }: EnvironmentCha
             stroke="#dc2626"
             strokeWidth={2}
             dot={{ fill: "#dc2626", strokeWidth: 2, r: 4 }}
-            activeDot={{ 
-              r: 6, 
-              fill: "#dc2626", 
-              stroke: "hsl(var(--background))", 
-              strokeWidth: 2,
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
-            }}
           />
           <Line
             yAxisId="humidity"
@@ -84,13 +77,6 @@ export function EnvironmentChart({ startMaterialFilter = "all" }: EnvironmentCha
             stroke="#2563eb"
             strokeWidth={2}
             dot={{ fill: "#2563eb", strokeWidth: 2, r: 4 }}
-            activeDot={{ 
-              r: 6, 
-              fill: "#2563eb", 
-              stroke: "hsl(var(--background))", 
-              strokeWidth: 2,
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
-            }}
           />
         </LineChart>
       </ResponsiveContainer>

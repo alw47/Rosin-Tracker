@@ -59,13 +59,7 @@ export function YieldChart({ startMaterialFilter = "all" }: YieldChartProps) {
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-            activeDot={{ 
-              r: 6, 
-              fill: "hsl(var(--primary))", 
-              stroke: "hsl(var(--background))", 
-              strokeWidth: 2,
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
-            }}
+            activeDot={{ r: 6 }}
           />
         </LineChart>
       </ResponsiveContainer>
