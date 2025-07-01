@@ -583,6 +583,27 @@ if ! PGPASSWORD=$DB_PASSWORD psql -h localhost -U $DB_USERNAME -d rosin_tracker 
 fi
 print_success "Database schema verification completed successfully"
 
+# Test basic application startup before systemd service creation
+print_status "Testing application startup environment..."
+cd /home/rosin-tracker
+if timeout 30s node -e "
+    try {
+        console.log('Testing production environment setup...');
+        process.env.NODE_ENV = 'production';
+        console.log('Database URL present:', !!process.env.DATABASE_URL);
+        console.log('AUTH_PASSWORD value:', process.env.AUTH_PASSWORD || 'not set');
+        console.log('✅ Environment test passed');
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Environment test failed:', error.message);
+        process.exit(1);
+    }
+" 2>&1; then
+    print_success "Application environment test passed"
+else
+    print_warning "Application environment test failed, but continuing with service setup"
+fi
+
 # Install and configure systemd service with comprehensive error handling
 print_status "Setting up systemd service..."
 

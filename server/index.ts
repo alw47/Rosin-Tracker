@@ -3,16 +3,16 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 // Load environment variables from .env file in development
-function loadEnvironmentVariables() {
+async function loadEnvironmentVariables() {
   if (process.env.NODE_ENV !== 'production') {
     try {
-      const fs = require('fs');
-      const path = require('path');
+      const fs = await import('fs');
+      const path = await import('path');
       
       const envPath = path.resolve('.env');
       if (fs.existsSync(envPath)) {
         const envContent = fs.readFileSync(envPath, 'utf8');
-        envContent.split('\n').forEach(line => {
+        envContent.split('\n').forEach((line: string) => {
           const [key, ...valueParts] = line.split('=');
           if (key && valueParts.length > 0) {
             const value = valueParts.join('=').trim();
@@ -28,9 +28,6 @@ function loadEnvironmentVariables() {
     }
   }
 }
-
-// Load environment variables immediately
-loadEnvironmentVariables();
 
 const app = express();
 
@@ -81,30 +78,58 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    // Load environment variables first
+    await loadEnvironmentVariables();
+    
+    console.log('🚀 Starting Rosin Tracker application...');
+    console.log('📍 Environment:', process.env.NODE_ENV || 'development');
+    console.log('🔌 DATABASE_URL set:', !!process.env.DATABASE_URL);
 
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    console.log('📊 Registering routes...');
+    const server = await registerRoutes(app);
+    console.log('✅ Routes registered successfully');
 
-    console.error(`Error ${status} on ${req.method} ${req.path}:`, err);
-    res.status(status).json({ message });
-  });
+    app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+      console.error(`Error ${status} on ${req.method} ${req.path}:`, err);
+      res.status(status).json({ message });
+    });
+
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      console.log('🔧 Setting up Vite development server...');
+      await setupVite(app, server);
+      console.log('✅ Vite development server ready');
+    } else {
+      console.log('📦 Setting up static file serving...');
+      serveStatic(app);
+      console.log('✅ Static file serving configured');
+    }
+
+    // ALWAYS serve the app on port 5000
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = 5000;
+    console.log(`🌐 Starting server on port ${port}...`);
+    
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`✅ Server successfully started on port ${port}`);
+      log(`serving on port ${port}`);
+    });
+
+    // Handle server errors
+    server.on('error', (error: any) => {
+      console.error('❌ Server error:', error);
+      process.exit(1);
+    });
+
+  } catch (error) {
+    console.error('❌ Application startup failed:', error);
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
-  });
 })();

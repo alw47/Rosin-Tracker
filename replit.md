@@ -245,6 +245,9 @@ Changelog:
 - July 1, 2025. COMPREHENSIVE PORT CONFLICT HANDLING: Fixed all verification sections to properly skip service checks when port conflicts prevent service startup, ensuring reliable installation in development environments
 - July 1, 2025. CRITICAL LOGIC FIX: Corrected inverted port detection logic that was incorrectly identifying occupied ports as available, resolving installation failures in development environments
 - July 1, 2025. SYSTEMD SERVICE FIX: Updated systemd service configuration to include build step, proper node/npm paths, and environment file loading for production deployment
+- July 1, 2025. APPLICATION STARTUP DIAGNOSTICS: Added comprehensive logging to Node.js application and installation script to diagnose production startup failures
+- July 1, 2025. TOP-LEVEL AWAIT FIX: Converted dynamic imports to require() statements to resolve ES module compatibility issues in production builds
+- July 1, 2025. FINAL ES MODULE FIX: Moved environment loading into main async function and restored proper dynamic imports for ES module compatibility
 ```
 
 ## User Preferences
