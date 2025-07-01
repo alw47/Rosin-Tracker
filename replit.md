@@ -208,6 +208,7 @@ Changelog:
 - July 1, 2025. Added comprehensive multi-strain support for hash made from different cannabis varieties
 - July 1, 2025. Enhanced form validation to allow 0 values as N/A indicators for equipment measurements
 - July 1, 2025. Fixed installation script with proper fresh/update modes and environment variable handling
+- July 1, 2025. CRITICAL FIX: Resolved database clearing bug in installation script --update mode that was destroying existing data
 ```
 
 ## User Preferences

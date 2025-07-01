@@ -201,14 +201,15 @@ npm uninstall @neondatabase/serverless 2>/dev/null || true
 print_success "Dependencies installed"
 
 # Setup database
-print_status "Setting up PostgreSQL database..."
+if [ "$FRESH_INSTALL" = true ]; then
+    print_status "Setting up PostgreSQL database (FRESH INSTALL - will reset data)..."
+    
+    # Generate random passwords
+    DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+    SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
 
-# Generate random passwords
-DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
-
-# Setup database - handle existing database/user
-sudo -u postgres psql << EOF
+    # Setup database - handle existing database/user
+    sudo -u postgres psql << EOF
 -- Drop existing database and user if they exist to start fresh
 DROP DATABASE IF EXISTS rosin_tracker;
 DROP USER IF EXISTS rosin_user;
@@ -229,7 +230,59 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO rosin_user;
 \q
 EOF
 
-print_success "Database created with user 'rosin_user'"
+    print_success "Database created with user 'rosin_user'"
+else
+    print_status "Updating installation - preserving existing database..."
+    
+    # Check if .env file exists to get existing credentials
+    if [ -f ".env" ]; then
+        print_status "Using existing environment configuration..."
+        # Extract existing credentials from .env
+        DB_PASSWORD=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/rosin_user:\([^@]*\)@.*/\1/')
+        SESSION_SECRET=$(grep "SESSION_SECRET" .env | cut -d'=' -f2)
+        
+        if [ -z "$DB_PASSWORD" ] || [ -z "$SESSION_SECRET" ]; then
+            print_warning "Could not extract existing credentials from .env file"
+            print_status "Generating new credentials..."
+            DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+            SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
+        else
+            print_success "Existing credentials found and preserved"
+        fi
+    else
+        print_warning "No existing .env file found, generating new credentials..."
+        DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+        SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
+    fi
+    
+    # Only create database if it doesn't exist
+    sudo -u postgres psql << EOF
+-- Create database and user only if they don't exist
+SELECT 'CREATE DATABASE rosin_tracker' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'rosin_tracker')\gexec
+DO \$\$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'rosin_user') THEN
+      CREATE USER rosin_user WITH ENCRYPTED PASSWORD '$DB_PASSWORD';
+   END IF;
+END
+\$\$;
+
+-- Grant permissions
+GRANT ALL PRIVILEGES ON DATABASE rosin_tracker TO rosin_user;
+ALTER DATABASE rosin_tracker OWNER TO rosin_user;
+
+-- Grant additional permissions
+\c rosin_tracker
+GRANT ALL PRIVILEGES ON SCHEMA public TO rosin_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rosin_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rosin_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO rosin_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO rosin_user;
+\q
+EOF
+
+    print_success "Database setup completed (existing data preserved)"
+fi
 
 # Create environment file
 print_status "Creating environment configuration..."
