@@ -405,7 +405,7 @@ export default function Analytics() {
                     ]}
                     labelStyle={{ color: 'var(--foreground)' }}
                     contentStyle={{ 
-                      backgroundColor: 'hsl(var(--muted))',
+                      backgroundColor: 'var(--background)',
                       border: '1px solid var(--border)',
                       borderRadius: '6px'
                     }}
