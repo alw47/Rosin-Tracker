@@ -19,25 +19,46 @@ A comprehensive rosin press tracking application designed for cannabis processin
 
 For automatic setup on Debian or Ubuntu systems (run as regular user, not root):
 
-**Fresh installation (default - resets IDs to start from 1):**
+**Basic Installation (No Authentication):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash -s -- --fresh
 ```
 
-**Update installation (preserves existing data):**
+**Secure Installation (Email + 2FA Authentication):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash -s -- --update
+curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash -s -- --fresh --auth
+```
+
+**Update Existing Installation:**
+```bash
+curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash
+```
+
+### Local Installation Options
+
+If you've already downloaded the repository:
+
+```bash
+# Basic installation (no login required)
+./install-simple.sh --fresh
+
+# Secure installation (email-based authentication with 2FA)
+./install-simple.sh --fresh --auth
+
+# Update existing installation (preserves data)
+./install-simple.sh
 ```
 
 This script will:
-- Install all dependencies (Node.js, PostgreSQL, Nginx)
-- Setup the database and user accounts
+- Install all dependencies (Node.js, PostgreSQL)
+- Generate secure database credentials automatically
+- Setup the database with proper permissions
 - Fresh install: reset database sequences to start from ID 1
 - Update install: preserve existing data and sequences
 - Configure systemd service for auto-startup
-- Setup SSL with Let's Encrypt (optional)
+- Setup UFW firewall rules
 - Start the application on port 5000
-- Enable optional authentication with 2FA support
+- Optional: Enable email-based authentication with 2FA support
 
 ### Manual Installation
 
@@ -103,6 +124,59 @@ SESSION_SECRET=your-random-secret-string
 - **Database**: PostgreSQL with Drizzle ORM
 - **Charts**: Recharts for data visualization
 - **State Management**: TanStack Query
+
+## Post-Installation
+
+### Access Your Application
+- **Local**: `http://localhost:5000`
+- **External**: `http://your-server-ip:5000`
+
+### Useful Commands
+```bash
+# View application logs
+sudo journalctl -u rosin-tracker -f
+
+# Restart application
+sudo systemctl restart rosin-tracker
+
+# Check application status
+sudo systemctl status rosin-tracker
+
+# Stop application
+sudo systemctl stop rosin-tracker
+```
+
+### Enable Authentication Later
+To enable authentication after installation:
+1. Edit `.env` file: `AUTH_PASSWORD=YES`
+2. Restart: `sudo systemctl restart rosin-tracker`
+
+## Troubleshooting
+
+### Port Already in Use
+```bash
+# Check what's using port 5000
+sudo lsof -i :5000
+
+# Stop and restart the service
+sudo systemctl stop rosin-tracker
+sudo systemctl start rosin-tracker
+```
+
+### Database Connection Issues
+```bash
+# Check PostgreSQL status
+sudo systemctl status postgresql
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### Installation Issues
+For interactive prompt issues, use the original installer:
+```bash
+./install.sh --fresh
+```
 
 ## Scripts
 

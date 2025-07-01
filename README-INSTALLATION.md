@@ -4,8 +4,18 @@
 
 For a hassle-free installation without interactive prompts:
 
+**Basic Installation (No Authentication):**
 ```bash
-# Download and run the simple installer
+curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash -s -- --fresh
+```
+
+**Secure Installation (Email + 2FA Authentication):**
+```bash
+curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash -s -- --fresh --auth
+```
+
+**Update Existing Installation:**
+```bash
 curl -sSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install-simple.sh | bash
 ```
 

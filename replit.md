@@ -238,6 +238,7 @@ Changelog:
 - July 1, 2025. CRITICAL INSTALLATION FIXES: Resolved password input detection, EOF syntax error, and authentication prompt validation issues in install script
 - July 1, 2025. FINAL INSTALLATION SCRIPT FIXES: Resolved ENVEOF command error, environment variable export issues, and simplified input validation logic for production deployment
 - July 1, 2025. SIMPLIFIED INSTALLATION APPROACH: Created non-interactive install-simple.sh script with command-line flags to eliminate all interactive prompt issues for reliable automated deployment
+- July 1, 2025. DOCUMENTATION UPDATES: Updated README.md, .env.example, and README-INSTALLATION.md to reflect new simplified installation commands and troubleshooting guides
 ```
 
 ## User Preferences
