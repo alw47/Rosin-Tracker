@@ -104,10 +104,10 @@ export function ImageUpload({ value = [], onChange, maxImages = 5, className }: 
       {value.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {value.map((image, index) => (
-            <div key={index} className="relative group">
+            <div key={index} className="relative group w-full max-w-[200px] max-h-[200px] aspect-square overflow-hidden rounded-lg">
               <Dialog>
                 <DialogTrigger asChild>
-                  <div className="cursor-pointer group relative w-full max-w-[200px] max-h-[200px] aspect-square overflow-hidden rounded-lg">
+                  <div className="cursor-pointer group relative w-full h-full">
                     <img
                       src={image}
                       alt={`Upload ${index + 1}`}
