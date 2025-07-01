@@ -7,7 +7,7 @@ import { YieldChart } from "@/components/charts/yield-chart";
 import { EnvironmentChart } from "@/components/charts/environment-chart";
 import { useUnits } from "@/contexts/units-context";
 import { Link } from "wouter";
-import { Plus, TestTube, Percent, Clock, Weight, TrendingUp, ArrowRight } from "lucide-react";
+import { Plus, TestTube, Percent, Clock, Weight, TrendingUp, ArrowRight, Settings, FileText, Database, Users } from "lucide-react";
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown";
 import { formatDate, formatWeight, formatTemperature, formatDuration, formatMicronBags, formatPressure } from "@/lib/utils";
 // Type will be inferred from the API response
@@ -365,6 +365,36 @@ export default function Dashboard() {
                   <div className="text-left">
                     <p className="font-medium">Analytics</p>
                     <p className="text-sm text-gray-500">View detailed reports</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-400" />
+              </Button>
+            </Link>
+
+            <Link href="/batches">
+              <Button variant="outline" className="w-full justify-between h-auto p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Database className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">All Batches</p>
+                    <p className="text-sm text-gray-500">Browse all press records</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-400" />
+              </Button>
+            </Link>
+
+            <Link href="/settings">
+              <Button variant="outline" className="w-full justify-between h-auto p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Settings className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Settings</p>
+                    <p className="text-sm text-gray-500">Configure preferences</p>
                   </div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-gray-400" />
