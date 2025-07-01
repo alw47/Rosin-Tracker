@@ -594,6 +594,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/strain-performance-ranking", async (req, res) => {
+    try {
+      const startMaterial = req.query.startMaterial as string;
+      const rankings = await storage.getStrainPerformanceRanking(startMaterial);
+      res.json(rankings);
+    } catch (error) {
+      console.error("Strain performance ranking error:", error);
+      res.status(500).json({ message: "Failed to fetch strain performance rankings" });
+    }
+  });
+
   app.post("/api/analytics/batch-comparison", async (req, res) => {
     try {
       const { batchIds } = req.body;

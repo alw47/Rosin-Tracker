@@ -1,6 +1,6 @@
 import { rosinPresses, curingLogs, curingReminders, type RosinPress, type InsertRosinPress, type CuringLog, type InsertCuringLog, type CuringReminder, type InsertCuringReminder } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc, and, gte, lte, ilike, sql, isNotNull } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, ilike, sql, isNotNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Rosin Press operations
@@ -72,6 +72,19 @@ export interface IStorage {
     avgPreheatingTime: number;
     durationVsYield: { duration: number; yield: number }[];
   }>;
+  
+  // Strain Performance Ranking
+  getStrainPerformanceRanking(startMaterial?: string): Promise<{
+    strain: string;
+    overallScore: number;
+    rank: number;
+    totalBatches: number;
+    avgYield: number;
+    yieldConsistency: number; // Lower is better (standard deviation)
+    bestYield: number;
+    recentPerformance: number; // Yield trend over last 5 batches
+    qualityScore: number; // Based on curing data
+  }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -509,6 +522,165 @@ export class DatabaseStorage implements IStorage {
   async deleteCuringReminder(id: number): Promise<boolean> {
     const result = await db.delete(curingReminders).where(eq(curingReminders.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getStrainPerformanceRanking(startMaterial?: string): Promise<{
+    strain: string;
+    overallScore: number;
+    rank: number;
+    totalBatches: number;
+    avgYield: number;
+    yieldConsistency: number;
+    bestYield: number;
+    recentPerformance: number;
+    qualityScore: number;
+  }[]> {
+    const conditions = [];
+    if (startMaterial && startMaterial !== "all") {
+      conditions.push(sql`${rosinPresses.startMaterial} = ${startMaterial}`);
+    }
+
+    // Get strain data with yields and batch info
+    const strainQuery = db
+      .select({
+        strain: sql<string>`unnest(${rosinPresses.strain})`,
+        yieldPercentage: rosinPresses.yieldPercentage,
+        yieldAmount: rosinPresses.yieldAmount,
+        startAmount: rosinPresses.startAmount,
+        pressDate: rosinPresses.pressDate,
+        batchId: rosinPresses.id
+      })
+      .from(rosinPresses)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const batchData = await strainQuery;
+
+    // Group by strain and calculate metrics
+    const strainMetrics = new Map<string, {
+      yields: number[];
+      batchCount: number;
+      recentYields: number[];
+      batchIds: number[];
+    }>();
+
+    // Process batch data by strain
+    batchData.forEach(batch => {
+      if (!strainMetrics.has(batch.strain)) {
+        strainMetrics.set(batch.strain, {
+          yields: [],
+          batchCount: 0,
+          recentYields: [],
+          batchIds: []
+        });
+      }
+      
+      const metrics = strainMetrics.get(batch.strain)!;
+      if (batch.yieldPercentage !== null) {
+        metrics.yields.push(batch.yieldPercentage);
+        metrics.batchCount++;
+        metrics.batchIds.push(batch.batchId);
+      }
+    });
+
+    // Calculate quality scores from curing data
+    const qualityScores = new Map<string, number>();
+    
+    for (const strainEntry of Array.from(strainMetrics.entries())) {
+      const [strain, metrics] = strainEntry;
+      if (metrics.batchIds.length > 0) {
+        // Get curing logs for this strain's batches
+        const curingData = await db
+          .select({
+            consistency: curingLogs.consistency,
+            aromaNotes: curingLogs.aromaNotes
+          })
+          .from(curingLogs)
+          .where(inArray(curingLogs.batchId, metrics.batchIds));
+
+        // Calculate quality score (1-10 scale)
+        let qualitySum = 0;
+        let qualityCount = 0;
+        
+        curingData.forEach(curing => {
+          // Consistency score (Crumbly=1, Sticky=2, Stable=3, Butter=4, Shatter=5)
+          const consistencyScore = {
+            'crumbly': 1,
+            'sticky': 2, 
+            'stable': 3,
+            'butter': 4,
+            'shatter': 5
+          }[curing.consistency?.toLowerCase() || ''] || 3;
+          
+          // Aroma quality score based on notes length and content (simple heuristic)
+          const aromaScore = curing.aromaNotes ? 
+            Math.min(Math.max(curing.aromaNotes.length / 20, 3), 8) : 5;
+          
+          qualitySum += (consistencyScore * 2 + aromaScore) / 3; // Weighted average
+          qualityCount++;
+        });
+        
+        qualityScores.set(strain, qualityCount > 0 ? qualitySum / qualityCount : 5.0);
+      } else {
+        qualityScores.set(strain, 5.0); // Default quality score
+      }
+    }
+
+    // Calculate performance metrics for each strain
+    const rankings = Array.from(strainMetrics.entries()).map(([strain, metrics]) => {
+      const yields = metrics.yields;
+      const avgYield = yields.reduce((sum, y) => sum + y, 0) / yields.length;
+      const bestYield = Math.max(...yields);
+      
+      // Calculate yield consistency (lower standard deviation = more consistent)
+      const variance = yields.reduce((sum, y) => sum + Math.pow(y - avgYield, 2), 0) / yields.length;
+      const yieldConsistency = Math.sqrt(variance);
+      
+      // Recent performance (last 5 batches trend)
+      const sortedBatches = batchData
+        .filter(b => b.strain === strain && b.yieldPercentage !== null)
+        .sort((a, b) => new Date(b.pressDate).getTime() - new Date(a.pressDate).getTime())
+        .slice(0, 5);
+      
+      const recentPerformance = sortedBatches.length > 0 
+        ? sortedBatches.reduce((sum, b) => sum + b.yieldPercentage!, 0) / sortedBatches.length
+        : avgYield;
+
+      const qualityScore = qualityScores.get(strain) || 5.0;
+
+      // Calculate overall score (weighted combination)
+      const yieldScore = Math.min(avgYield / 30 * 10, 10); // Normalize to 0-10 scale (30% = max)
+      const consistencyScore = Math.max(0, 10 - yieldConsistency); // Lower deviation = higher score
+      const recentScore = Math.min(recentPerformance / 30 * 10, 10);
+      const batchCountScore = Math.min(metrics.batchCount / 10 * 5, 5); // More batches = higher confidence
+
+      const overallScore = (
+        yieldScore * 0.3 +           // 30% yield
+        consistencyScore * 0.25 +    // 25% consistency
+        recentScore * 0.20 +         // 20% recent performance
+        qualityScore * 0.15 +        // 15% quality
+        batchCountScore * 0.10       // 10% sample size
+      );
+
+      return {
+        strain,
+        overallScore: Math.round(overallScore * 10) / 10,
+        rank: 0, // Will be set after sorting
+        totalBatches: metrics.batchCount,
+        avgYield: Math.round(avgYield * 10) / 10,
+        yieldConsistency: Math.round(yieldConsistency * 10) / 10,
+        bestYield: Math.round(bestYield * 10) / 10,
+        recentPerformance: Math.round(recentPerformance * 10) / 10,
+        qualityScore: Math.round(qualityScore * 10) / 10
+      };
+    });
+
+    // Sort by overall score and assign ranks
+    rankings.sort((a, b) => b.overallScore - a.overallScore);
+    rankings.forEach((ranking, index) => {
+      ranking.rank = index + 1;
+    });
+
+    return rankings;
   }
 }
 

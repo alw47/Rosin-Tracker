@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { YieldChart } from "@/components/charts/yield-chart";
 import { EnvironmentChart } from "@/components/charts/environment-chart";
+import { StrainRankingChart } from "@/components/charts/strain-ranking-chart";
 import { useUnits } from "@/contexts/units-context";
 import { 
   TrendingUp, 
@@ -458,6 +459,11 @@ export default function Analytics() {
           </Card>
         </div>
       )}
+
+      {/* Strain Performance Ranking Section */}
+      <div className="space-y-6">
+        <StrainRankingChart startMaterialFilter={startMaterialFilter} />
+      </div>
     </div>
   );
 }

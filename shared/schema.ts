@@ -114,17 +114,93 @@ export type CuringLog = typeof curingLogs.$inferSelect;
 export type InsertCuringReminder = z.infer<typeof insertCuringReminderSchema>;
 export type CuringReminder = typeof curingReminders.$inferSelect;
 
-// Remove old user schema
+// Secure Authentication User Schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  isEmailVerified: boolean("is_email_verified").default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
+  
+  // 2FA Support
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  backupCodes: text("backup_codes").array(), // Array of backup codes
+  
+  // Password Reset
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpiry: timestamp("password_reset_expiry"),
+  
+  // Security
+  lastLoginAt: timestamp("last_login_at"),
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User sessions table for secure session management
+export const userSessions = pgTable("user_sessions", {
+  id: text("id").primaryKey(), // UUID
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
+  email: true,
   username: true,
-  password: true,
+  passwordHash: true,
+}).extend({
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+});
+
+export const loginUserSchema = z.object({
+  emailOrUsername: z.string().min(1, "Email or username is required"),
+  password: z.string().min(1, "Password is required"),
+  twoFactorCode: z.string().optional(),
+});
+
+export const registerUserSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(30),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export const enable2FASchema = z.object({
+  code: z.string().length(6, "2FA code must be 6 digits"),
+});
+
+export const verify2FASchema = z.object({
+  code: z.string().length(6, "2FA code must be 6 digits"),
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().email("Valid email is required"),
+});
+
+export const passwordResetSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UserSession = typeof userSessions.$inferSelect;
+export type LoginUser = z.infer<typeof loginUserSchema>;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
