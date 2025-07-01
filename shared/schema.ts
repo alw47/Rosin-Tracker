@@ -81,13 +81,13 @@ export const insertRosinPressSchema = createInsertSchema(rosinPresses).omit({
   pressDate: true,
 }).extend({
   micronBags: z.array(micronBagSchema).optional(),
-  // Make optional fields truly optional with defaults
+  // Make optional fields truly optional with defaults - allow 0 as N/A indicator
   temperature: z.number().min(0).max(500).optional(),
-  pressure: z.number().min(0.1).max(10000).optional(), 
+  pressure: z.number().min(0).max(10000).optional(), // Allow 0 as N/A indicator
   pressSize: z.string().optional(),
-  numberOfPresses: z.number().min(1).max(20).optional(),
+  numberOfPresses: z.number().min(0).max(20).optional(), // Allow 0 as N/A indicator
   humidity: z.number().min(0).max(100).optional(),
-  pressDuration: z.number().min(1).max(7200).optional(), // Max 2 hours
+  pressDuration: z.number().min(0).max(7200).optional(), // Allow 0 as N/A indicator - Max 2 hours
 });
 
 export const insertCuringLogSchema = createInsertSchema(curingLogs).omit({

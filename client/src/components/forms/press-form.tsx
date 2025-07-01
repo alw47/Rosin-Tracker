@@ -192,6 +192,9 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
           <Card>
             <CardHeader>
               <CardTitle>Press Settings</CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                💡 Tip: Enter 0 for any measurement you don't have equipment to measure (pressure, humidity, etc.) - this indicates N/A
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
