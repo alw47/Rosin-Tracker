@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
+  const [twoFactorQRCodeUrl, setTwoFactorQRCodeUrl] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [clearExistingData, setClearExistingData] = useState(false);
   
@@ -102,6 +103,7 @@ export default function SettingsPage() {
     },
     onSuccess: (data: Setup2FAResponse) => {
       setTwoFactorSecret(data.secret);
+      setTwoFactorQRCodeUrl(data.qrCodeUrl);
       toast({
         title: "2FA Setup",
         description: "Scan the QR code with your authenticator app.",
@@ -112,7 +114,7 @@ export default function SettingsPage() {
   // Enable 2FA
   const enable2FAMutation = useMutation({
     mutationFn: async (code: string) => {
-      await apiRequest("/api/settings/2fa/enable", "POST", { 
+      await apiRequest("POST", "/api/settings/2fa/enable", { 
         code, 
         secret: twoFactorSecret 
       });
@@ -125,13 +127,14 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/settings/security"] });
       setTwoFactorCode("");
       setTwoFactorSecret("");
+      setTwoFactorQRCodeUrl("");
     },
   });
 
   // Disable 2FA
   const disable2FAMutation = useMutation({
     mutationFn: async (code: string) => {
-      await apiRequest("/api/settings/2fa/disable", "POST", { code });
+      await apiRequest("POST", "/api/settings/2fa/disable", { code });
     },
     onSuccess: () => {
       toast({
@@ -809,7 +812,7 @@ export default function SettingsPage() {
                     
                     <div className="space-y-4">
                       <QRCodeComponent 
-                        value={setup2FAMutation.data?.qrCodeUrl || ""} 
+                        value={twoFactorQRCodeUrl || ""} 
                         size={200}
                         className="p-4 bg-muted rounded-lg"
                       />
