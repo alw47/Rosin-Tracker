@@ -714,13 +714,35 @@ fi
 # Check if port 5000 is already in use (development environment detection)
 print_status "Checking for port conflicts..."
 PORT_IN_USE=false
+
+# More comprehensive port checking
 if command -v netstat &> /dev/null; then
-    if netstat -tuln | grep -q ":5000 "; then
+    if netstat -tuln 2>/dev/null | grep -E "(:5000 |\.5000 )" | grep -E "(LISTEN|tcp)" > /dev/null; then
         PORT_IN_USE=true
+        print_warning "Detected process listening on port 5000 (netstat)"
     fi
 elif command -v ss &> /dev/null; then
-    if ss -tuln | grep -q ":5000 "; then
+    if ss -tuln 2>/dev/null | grep -E "(:5000 |\.5000 )" > /dev/null; then
         PORT_IN_USE=true
+        print_warning "Detected process listening on port 5000 (ss)"
+    fi
+fi
+
+# Additional check using lsof if available
+if [ "$PORT_IN_USE" = false ] && command -v lsof &> /dev/null; then
+    if lsof -i :5000 2>/dev/null | grep -q LISTEN; then
+        PORT_IN_USE=true
+        print_warning "Detected process listening on port 5000 (lsof)"
+    fi
+fi
+
+# Final check by attempting to connect to the port
+if [ "$PORT_IN_USE" = false ]; then
+    if timeout 2 bash -c "</dev/tcp/localhost/5000" 2>/dev/null; then
+        PORT_IN_USE=true
+        print_warning "Port 5000 is responding to connections"
+    else
+        print_status "Port 5000 appears to be available"
     fi
 fi
 
@@ -730,50 +752,69 @@ if [ "$PORT_IN_USE" = false ] && systemctl is-active --quiet rosin-tracker; then
     sudo systemctl stop rosin-tracker
 fi
 
-# Handle service startup based on port availability
+# Handle service startup with robust error handling
 SERVICE_STARTED=false
+
 if [ "$PORT_IN_USE" = true ]; then
     print_warning "Port 5000 is already in use (likely development environment)"
     print_warning "Skipping systemd service startup to avoid port conflict"
     print_status "Service is configured but not started due to port conflict"
     print_status "In production, stop the existing process before starting the service"
 else
-    # Start the service with error checking
-    print_status "Starting rosin-tracker service..."
-    if ! sudo systemctl start rosin-tracker; then
-        print_error "Failed to start rosin-tracker service"
-        print_error "Service logs:"
-        sudo journalctl -u rosin-tracker --no-pager -n 20
-        
-        # Check if it's a port conflict that we missed
-        if sudo journalctl -u rosin-tracker --no-pager -n 10 | grep -q "EADDRINUSE\|address already in use"; then
-            print_warning "Service failed due to port conflict"
-            print_warning "Another process is using port 5000"
-            print_status "Service is configured but not started due to port conflict"
-            PORT_IN_USE=true  # Update our flag
+    # Always attempt to start the service, but handle failures gracefully
+    print_status "Attempting to start rosin-tracker service..."
+    
+    # Start service and capture both stdout and stderr
+    SERVICE_START_OUTPUT=$(sudo systemctl start rosin-tracker 2>&1)
+    SERVICE_START_SUCCESS=$?
+    
+    if [ $SERVICE_START_SUCCESS -eq 0 ]; then
+        # Service start command succeeded, now verify it's actually running
+        sleep 3
+        if systemctl is-active --quiet rosin-tracker; then
+            SERVICE_STARTED=true
+            print_success "Systemd service started successfully"
         else
-            exit 1
+            # Service started but then stopped - check why
+            print_warning "Service started but then stopped, checking logs..."
+            if sudo journalctl -u rosin-tracker --no-pager -n 10 | grep -q "EADDRINUSE\|address already in use"; then
+                print_warning "Service stopped due to port conflict"
+                print_status "Service is configured but cannot run due to port conflict"
+                PORT_IN_USE=true
+            else
+                print_error "Service stopped for unknown reason"
+                print_error "Service status:"
+                sudo systemctl status rosin-tracker --no-pager
+                print_error "Recent logs:"
+                sudo journalctl -u rosin-tracker --no-pager -n 20
+                exit 1
+            fi
         fi
     else
-        # Wait a moment and verify service is running
-        sleep 3
-        if ! systemctl is-active --quiet rosin-tracker; then
-            print_error "Service failed to start or stopped unexpectedly"
-            print_error "Service status:"
-            sudo systemctl status rosin-tracker --no-pager
-            print_error "Recent logs:"
+        # Service start command failed
+        print_warning "Service startup failed, checking if it's a port conflict..."
+        
+        # Check recent logs for port conflicts
+        if sudo journalctl -u rosin-tracker --no-pager -n 10 | grep -q "EADDRINUSE\|address already in use"; then
+            print_warning "Service failed due to port conflict (expected in development)"
+            print_status "Service is configured but cannot start due to port conflict"
+            PORT_IN_USE=true
+        else
+            print_error "Service failed to start for unknown reason"
+            print_error "Service logs:"
             sudo journalctl -u rosin-tracker --no-pager -n 20
             exit 1
         fi
-        SERVICE_STARTED=true
-        print_success "Systemd service started successfully"
     fi
 fi
 
+# Report final service status
 if [ "$SERVICE_STARTED" = true ]; then
     print_success "Systemd service configured and started successfully"
+elif [ "$PORT_IN_USE" = true ]; then
+    print_success "Systemd service configured (startup skipped due to port conflict - normal in development)"
 else
-    print_success "Systemd service configured (startup skipped due to port conflict)"
+    print_success "Systemd service configured"
 fi
 
 # Verify the application is responding (only if we started the service)
