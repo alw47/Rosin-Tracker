@@ -102,13 +102,25 @@ export default function SettingsPage() {
   const setup2FAMutation = useMutation({
     mutationFn: async (): Promise<Setup2FAResponse> => {
       const response = await apiRequest("POST", "/api/settings/2fa/setup");
-      return response as unknown as Setup2FAResponse;
+      return response;
     },
     onSuccess: (data: Setup2FAResponse) => {
+      console.log("2FA Setup Response:", data); // Debug log
       setTwoFactorSecret(data.secret);
       setTwoFactorQRCodeUrl(data.qrCodeUrl);
       setTwoFactorStep('setup');
       setShow2FAModal(true);
+      toast({
+        title: "2FA Setup Ready",
+        description: "Scan the QR code with your authenticator app.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "2FA Setup Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
