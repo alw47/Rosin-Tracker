@@ -6,7 +6,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: any | null;
-  login: (emailOrUsername: string, password: string, twoFactorCode?: string) => Promise<void>;
+  login: (email: string, password: string, twoFactorCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   authEnabled: boolean;
   needsSetup: boolean;
@@ -44,13 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async ({ emailOrUsername, password, twoFactorCode }: { 
-      emailOrUsername: string; 
+    mutationFn: async ({ email, password, twoFactorCode }: { 
+      email: string; 
       password: string; 
       twoFactorCode?: string; 
     }) => {
-      await apiRequest("/api/auth/login", "POST", { 
-        emailOrUsername, 
+      await apiRequest("POST", "/api/auth/login", { 
+        email, 
         password, 
         twoFactorCode 
       });
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("/api/auth/logout", "POST");
+      await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
@@ -77,8 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading: authEnabled ? isLoading : false,
         user,
-        login: async (emailOrUsername: string, password: string, twoFactorCode?: string) => {
-          await loginMutation.mutateAsync({ emailOrUsername, password, twoFactorCode });
+        login: async (email: string, password: string, twoFactorCode?: string) => {
+          await loginMutation.mutateAsync({ email, password, twoFactorCode });
         },
         logout: logoutMutation.mutateAsync,
         authEnabled,
