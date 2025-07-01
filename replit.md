@@ -146,11 +146,15 @@ The application uses two primary tables:
 ## Self-Hosting Configuration
 
 ### Environment Variables
-The application uses environment variables for configuration. Create a `.env` file based on `.env.example`:
+The application uses environment variables for configuration. A comprehensive `.env.example` template is provided with detailed documentation:
 
 - **DATABASE_URL**: PostgreSQL connection string (required)
 - **AUTH_PASSWORD**: Set to enable login protection, leave empty to disable authentication (optional)
 - **SESSION_SECRET**: Random string for session security (recommended for production)
+- **PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD**: Database connection details
+- **NODE_ENV, PORT**: Application runtime settings
+
+**Setup:** Copy `.env.example` to `.env` and configure values for your deployment.
 
 ### Authentication Setup
 Authentication is completely optional and designed for self-hosting security:
@@ -220,6 +224,7 @@ Changelog:
 - July 1, 2025. Implemented initial user setup route for first-time account creation when authentication is enabled
 - July 1, 2025. Enhanced settings page with password change, email change, and comprehensive user management interface
 - July 1, 2025. Added backend recovery mechanisms and documentation for 2FA/password loss scenarios
+- July 1, 2025. Created comprehensive .env.example template with detailed configuration documentation for all environment variables
 ```
 
 ## User Preferences
