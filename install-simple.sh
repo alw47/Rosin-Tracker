@@ -711,13 +711,8 @@ if ! sudo systemctl enable rosin-tracker; then
     exit 1
 fi
 
-# Stop any existing service before starting
-if systemctl is-active --quiet rosin-tracker; then
-    print_status "Stopping existing rosin-tracker service..."
-    sudo systemctl stop rosin-tracker
-fi
-
 # Check if port 5000 is already in use (development environment detection)
+print_status "Checking for port conflicts..."
 PORT_IN_USE=false
 if command -v netstat &> /dev/null; then
     if netstat -tuln | grep -q ":5000 "; then
@@ -729,6 +724,14 @@ elif command -v ss &> /dev/null; then
     fi
 fi
 
+# Stop any existing service before starting (only if we're going to start it)
+if [ "$PORT_IN_USE" = false ] && systemctl is-active --quiet rosin-tracker; then
+    print_status "Stopping existing rosin-tracker service..."
+    sudo systemctl stop rosin-tracker
+fi
+
+# Handle service startup based on port availability
+SERVICE_STARTED=false
 if [ "$PORT_IN_USE" = true ]; then
     print_warning "Port 5000 is already in use (likely development environment)"
     print_warning "Skipping systemd service startup to avoid port conflict"
@@ -742,11 +745,12 @@ else
         print_error "Service logs:"
         sudo journalctl -u rosin-tracker --no-pager -n 20
         
-        # Check if it's a port conflict
+        # Check if it's a port conflict that we missed
         if sudo journalctl -u rosin-tracker --no-pager -n 10 | grep -q "EADDRINUSE\|address already in use"; then
             print_warning "Service failed due to port conflict"
             print_warning "Another process is using port 5000"
             print_status "Service is configured but not started due to port conflict"
+            PORT_IN_USE=true  # Update our flag
         else
             exit 1
         fi
@@ -761,29 +765,38 @@ else
             sudo journalctl -u rosin-tracker --no-pager -n 20
             exit 1
         fi
+        SERVICE_STARTED=true
         print_success "Systemd service started successfully"
     fi
 fi
 
-print_success "Systemd service configured and started successfully"
+if [ "$SERVICE_STARTED" = true ]; then
+    print_success "Systemd service configured and started successfully"
+else
+    print_success "Systemd service configured (startup skipped due to port conflict)"
+fi
 
-# Verify the application is responding
-print_status "Verifying application is responding..."
-sleep 5  # Give the app time to fully start
+# Verify the application is responding (only if we started the service)
+if [ "$SERVICE_STARTED" = true ]; then
+    print_status "Verifying application is responding..."
+    sleep 5  # Give the app time to fully start
 
-# Check if the application is listening on port 5000
-if command -v netstat &> /dev/null; then
-    if netstat -tuln | grep -q ":5000 "; then
-        print_success "Application is listening on port 5000"
-    else
-        print_warning "Application may not be listening on port 5000 yet"
+    # Check if the application is listening on port 5000
+    if command -v netstat &> /dev/null; then
+        if netstat -tuln | grep -q ":5000 "; then
+            print_success "Application is listening on port 5000"
+        else
+            print_warning "Application may not be listening on port 5000 yet"
+        fi
+    elif command -v ss &> /dev/null; then
+        if ss -tuln | grep -q ":5000 "; then
+            print_success "Application is listening on port 5000"
+        else
+            print_warning "Application may not be listening on port 5000 yet"
+        fi
     fi
-elif command -v ss &> /dev/null; then
-    if ss -tuln | grep -q ":5000 "; then
-        print_success "Application is listening on port 5000"
-    else
-        print_warning "Application may not be listening on port 5000 yet"
-    fi
+else
+    print_status "Skipping application connectivity test (service not started due to port conflict)"
 fi
 
 # Setup UFW firewall with error checking
@@ -807,13 +820,13 @@ fi
 # Final comprehensive verification
 print_status "Performing final system verification..."
 
-# Check service status one more time (only if we didn't skip due to port conflict)
-if [ "$PORT_IN_USE" = false ]; then
+# Check service status one more time (only if we actually started the service)
+if [ "$SERVICE_STARTED" = true ]; then
     if ! systemctl is-active --quiet rosin-tracker; then
         print_error "Service verification failed - rosin-tracker is not running"
         exit 1
     fi
-    print_success "Systemd service is running"
+    print_success "Systemd service is running and verified"
 else
     print_status "Service configured but not started due to port conflict (expected in development)"
 fi
@@ -824,8 +837,8 @@ if [ ! -f ".env" ] || ! grep -q "DATABASE_URL=" .env; then
     exit 1
 fi
 
-# Test basic HTTP connectivity (if curl is available)
-if command -v curl &> /dev/null; then
+# Test basic HTTP connectivity (if curl is available and service was started)
+if [ "$SERVICE_STARTED" = true ] && command -v curl &> /dev/null; then
     print_status "Testing application connectivity..."
     # Give the app a bit more time to fully initialize
     sleep 5
@@ -837,6 +850,8 @@ if command -v curl &> /dev/null; then
         print_warning "Application connectivity test failed, but service is running"
         print_warning "The application may still be starting up"
     fi
+elif [ "$SERVICE_STARTED" = false ]; then
+    print_status "Skipping HTTP connectivity test (service not started due to port conflict)"
 fi
 
 print_success "Final verification completed"
