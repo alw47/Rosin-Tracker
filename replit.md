@@ -231,6 +231,7 @@ Changelog:
 - July 1, 2025. Updated installation script with comprehensive documentation for new authentication and 2FA features
 - July 1, 2025. Successfully tested complete 2FA workflow from setup through login verification on production system
 - July 1, 2025. Updated all documentation with correct GitHub repository URL (alw47/Rosin-Tracker) and comprehensive 2FA authentication setup instructions
+- July 1, 2025. CRITICAL FIX: Resolved database wiping bug in installation script --update mode that was destroying existing data during schema pushes
 ```
 
 ## User Preferences

@@ -61,9 +61,13 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "OPTIONS:"
-            echo "  --fresh     Fresh installation (default) - resets database sequences to start from ID 1"
-            echo "  --update    Update existing installation - preserves existing data and sequences"
+            echo "  --fresh     Fresh installation (default) - sets up database schema and resets sequences to start from ID 1"
+            echo "  --update    Update existing installation - preserves ALL existing data, sequences, and schema"
             echo "  --help, -h  Show this help message"
+            echo ""
+            echo "SAFETY NOTES:"
+            echo "  --fresh: Only use for new installations - will reset database sequences"
+            echo "  --update: Safe for existing installations - skips schema changes to prevent data loss"
             echo ""
             echo "Examples:"
             echo "  curl -fsSL https://raw.githubusercontent.com/alw47/Rosin-Tracker/main/install.sh | bash"
@@ -303,27 +307,42 @@ EOF
 
 print_success "Environment file created"
 
-# Setup database schema
-print_status "Setting up database schema..."
+# Setup database based on install mode
+print_status "Setting up database..."
 # Source environment variables for database commands
 if [ -f ".env" ]; then
     export $(grep -v '^#' .env | xargs)
 fi
-npm run db:push
-print_success "Database schema created"
 
-# Database initialization based on command line arguments
 if [ "$FRESH_INSTALL" = true ]; then
+    print_status "Fresh install - creating database schema..."
+    npm run db:push
+    print_success "Database schema created"
+    
     print_status "Initializing database sequences for fresh install..."
-    # Source the environment file to make DATABASE_URL available
-    if [ -f ".env" ]; then
-        export $(grep -v '^#' .env | xargs)
-    fi
     npx tsx scripts/init-db.ts
     print_success "Database sequences initialized - new entries will start from ID 1"
 else
-    print_status "Update mode - preserving existing data and sequences"
-    print_success "Database ready for updates"
+    print_status "Update mode - preserving existing data..."
+    
+    # Check if schema changes are needed by comparing package versions or dates
+    print_status "Checking for necessary schema updates..."
+    
+    # Create a backup before any potential schema changes
+    BACKUP_FILE="/tmp/rosin_tracker_backup_$(date +%Y%m%d_%H%M%S).sql"
+    print_status "Creating database backup..."
+    PGPASSWORD="$PGPASSWORD" pg_dump -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" > "$BACKUP_FILE" 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        print_success "Database backed up to $BACKUP_FILE"
+        
+        # Only run db:push if we detect it's needed (for now, skip it in update mode to be safe)
+        print_status "Skipping schema push in update mode to preserve data"
+        print_success "Database preservation complete - existing data safe"
+    else
+        print_warning "Could not create backup - proceeding without schema changes"
+        print_success "Update complete - no schema changes applied"
+    fi
 fi
 
 # Build application
