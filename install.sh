@@ -253,12 +253,42 @@ if [ "$FRESH_INSTALL" = true ]; then
         fi
     done
     
+    # Prompt for authentication setup
+    echo ""
+    print_status "Setting up application security..."
+    echo ""
+    
+    while true; do
+        echo -n "Enable authentication for secure login? (y/N): "
+        read -r AUTH_CHOICE
+        AUTH_CHOICE=${AUTH_CHOICE:-N}
+        
+        case "${AUTH_CHOICE,,}" in
+            y|yes)
+                AUTH_PASSWORD="YES"
+                print_success "Authentication enabled - users will need to log in"
+                print_status "You'll be able to create user accounts after installation"
+                break
+                ;;
+            n|no|"")
+                AUTH_PASSWORD=""
+                print_success "Authentication disabled - application runs without login"
+                break
+                ;;
+            *)
+                print_error "Please enter 'y' for yes or 'n' for no"
+                ;;
+        esac
+    done
+    
     # Generate session secret
     SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
     
-    print_success "Database credentials configured"
-    print_status "Username: $DB_USERNAME"
-    print_status "Password: [hidden - will be saved to .env file]"
+    print_success "Security configuration complete"
+    print_status "Database Username: $DB_USERNAME"
+    print_status "Database Password: [hidden - will be saved to .env file]"
+    print_status "Authentication: $([ -n "$AUTH_PASSWORD" ] && echo "Enabled" || echo "Disabled")"
+    print_status "Session Secret: Auto-generated"
     echo ""
 
     # Setup database - handle existing database/user
@@ -294,6 +324,7 @@ else
         DB_USERNAME=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/\([^:]*\):.*/\1/')
         DB_PASSWORD=$(grep "DATABASE_URL" .env | sed 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/')
         SESSION_SECRET=$(grep "SESSION_SECRET" .env | cut -d'=' -f2)
+        AUTH_PASSWORD=$(grep "^AUTH_PASSWORD=" .env | cut -d'=' -f2)
         
         if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$SESSION_SECRET" ]; then
             print_warning "Could not extract existing credentials from .env file"
@@ -301,15 +332,18 @@ else
             DB_USERNAME=${DB_USERNAME:-rosin_user}
             DB_PASSWORD=${DB_PASSWORD:-$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)}
             SESSION_SECRET=${SESSION_SECRET:-$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)}
+            # AUTH_PASSWORD defaults to empty if not found (preserves existing behavior)
         else
             print_success "Existing credentials found and preserved"
             print_status "Username: $DB_USERNAME"
+            print_status "Authentication: $([ -n "$AUTH_PASSWORD" ] && echo "Enabled ($AUTH_PASSWORD)" || echo "Disabled")"
         fi
     else
         print_warning "No existing .env file found, using default credentials..."
         DB_USERNAME="rosin_user"
         DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         SESSION_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-50)
+        AUTH_PASSWORD=""  # Default to disabled for updates without existing config
     fi
     
     # Only create database if it doesn't exist
@@ -354,8 +388,8 @@ SESSION_SECRET=$SESSION_SECRET
 NODE_ENV=production
 PORT=5000
 
-# Authentication Settings (leave commented to disable authentication)
-# AUTH_PASSWORD=YES  # Set to "YES" to enable email-based authentication with 2FA support
+# Authentication Settings
+$([ -n "$AUTH_PASSWORD" ] && echo "AUTH_PASSWORD=YES  # Email-based authentication with 2FA support enabled" || echo "# AUTH_PASSWORD=YES  # Set to \"YES\" to enable email-based authentication with 2FA support")
 EOF
 
 print_success "Environment file created"
