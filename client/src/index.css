@@ -88,9 +88,7 @@
   border-radius: 6px !important;
 }
 
-/* More specific targeting for all tooltip elements */
-div[class*="recharts-tooltip"] {
-  background: hsl(240, 5%, 18%) !important;
-  border: 1px solid hsl(240, 6%, 20%) !important;
-  border-radius: 6px !important;
+/* Target the specific tooltip cursor background */
+.recharts-tooltip-cursor {
+  fill: hsl(240, 5%, 25%) !important;
 }
