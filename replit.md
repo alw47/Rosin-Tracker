@@ -209,6 +209,9 @@ Changelog:
 - July 1, 2025. Enhanced form validation to allow 0 values as N/A indicators for equipment measurements
 - July 1, 2025. Fixed installation script with proper fresh/update modes and environment variable handling
 - July 1, 2025. CRITICAL FIX: Resolved database clearing bug in installation script --update mode that was destroying existing data
+- July 1, 2025. Implemented frequently used strains feature with localStorage persistence and quick-select badges
+- July 1, 2025. Fixed micron bag size conversion issues with improved detection logic and validation
+- July 1, 2025. Enhanced recent batches dashboard module with comprehensive press details and better space utilization
 ```
 
 ## User Preferences

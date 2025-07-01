@@ -9,7 +9,8 @@ import { useUnits } from "@/contexts/units-context";
 import { Link } from "wouter";
 import { Plus, TestTube, Percent, Clock, Weight, TrendingUp, ArrowRight } from "lucide-react";
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown";
-import type { RosinPress } from "@/shared/schema";
+import { formatDate, formatWeight, formatTemperature, formatDuration, formatMicronBags, formatPressure } from "@/lib/utils";
+// Type will be inferred from the API response
 
 interface Statistics {
   totalBatches: number;
@@ -19,13 +20,13 @@ interface Statistics {
 }
 
 export default function Dashboard() {
-  const { convertWeight, getWeightUnit } = useUnits();
+  const { convertWeight, getWeightUnit, getTemperatureUnit, getPressureUnit, unitSystem } = useUnits();
 
   const { data: statistics, isLoading: statsLoading } = useQuery<Statistics>({
     queryKey: ["/api/analytics/statistics"],
   });
 
-  const { data: recentBatches, isLoading: batchesLoading } = useQuery<RosinPress[]>({
+  const { data: recentBatches, isLoading: batchesLoading } = useQuery({
     queryKey: ["/api/rosin-presses/recent"],
   });
 
@@ -224,32 +225,94 @@ export default function Dashboard() {
                   <p className="text-sm">Create your first rosin press to get started</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {recentBatches?.slice(0, 5).map((batch: any) => (
-                    <div key={batch.id} className="flex items-center justify-between py-4 border-b border-green-200 dark:border-green-800 last:border-b-0">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <TestTube className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2 mb-1">
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-2 py-0.5">
-                              #{batch.id}
-                            </Badge>
-                            <p className="font-medium text-neutral-800">{batch.strain}</p>
+                <div className="space-y-6">
+                  {recentBatches?.slice(0, 4).map((batch: any) => (
+                    <Link key={batch.id} href={`/batch/${batch.id}`}>
+                      <div className="group bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg p-4 border border-green-200 dark:border-green-800 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-green-300 dark:hover:border-green-700">
+                        {/* Header Row */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <TestTube className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800 text-xs px-2 py-0.5">
+                                  #{batch.id}
+                                </Badge>
+                                <span className="font-semibold text-neutral-800 dark:text-neutral-100">
+                                  {Array.isArray(batch.strain) ? batch.strain.join(", ") : batch.strain}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {formatDate(batch.pressDate)} • {batch.startMaterial}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500">
-                            Pressed {new Date(batch.pressDate).toLocaleDateString()}
-                          </p>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                              {batch.yieldPercentage.toFixed(1)}%
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              yield
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="space-y-1">
+                            <div className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Input</div>
+                            <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                              {formatWeight(batch.startAmount)}{getWeightUnit()}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Output</div>
+                            <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                              {formatWeight(batch.yieldAmount)}{getWeightUnit()}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Temperature</div>
+                            <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                              {batch.temperature ? `${formatTemperature(batch.temperature, getTemperatureUnit())}` : 'N/A'}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Duration</div>
+                            <div className="font-medium text-neutral-800 dark:text-neutral-100">
+                              {batch.pressDuration ? formatDuration(batch.pressDuration) : 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Micron Bags & Additional Info */}
+                        {batch.micronBags && Array.isArray(batch.micronBags) && batch.micronBags.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-green-100 dark:border-green-800">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Micron Bags</span>
+                                <div className="text-sm font-medium text-neutral-800 dark:text-neutral-100 mt-1">
+                                  {formatMicronBags(batch.micronBags, unitSystem)}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                                {batch.pressure > 0 && (
+                                  <span>{formatPressure(batch.pressure, getPressureUnit())}</span>
+                                )}
+                                {batch.humidity > 0 && (
+                                  <span>{batch.humidity}%</span>
+                                )}
+                                {batch.numberOfPresses > 1 && (
+                                  <span>{batch.numberOfPresses}x presses</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-neutral-800">{batch.yieldPercentage.toFixed(1)}%</p>
-                        <p className="text-sm text-gray-500">
-                          {formatWeight(batch.yieldAmount)}{getWeightUnit()}
-                        </p>
-                      </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
