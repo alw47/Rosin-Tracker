@@ -585,7 +585,7 @@ print_success "Database schema verification completed successfully"
 
 # Test basic application startup before systemd service creation
 print_status "Testing application startup environment..."
-cd /home/rosin-tracker
+cd "$CURRENT_DIR"
 if timeout 30s node -e "
     try {
         console.log('Testing production environment setup...');
