@@ -226,7 +226,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {recentBatches?.slice(0, 4).map((batch: any) => (
+                  {recentBatches?.slice(0, 2).map((batch: any) => (
                     <Link key={batch.id} href={`/batch/${batch.id}`}>
                       <div className="group bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 rounded-lg p-4 border border-green-200 dark:border-green-800 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-green-300 dark:hover:border-green-700">
                         {/* Header Row */}
