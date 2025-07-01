@@ -42,7 +42,10 @@ export default function Login() {
         description: "You've been successfully logged in.",
       });
     } catch (error: any) {
-      if (error.message.includes("2FA") || error.message.includes("two-factor")) {
+      const errorMessage = error.message.toLowerCase();
+      if (errorMessage.includes("2fa") || 
+          errorMessage.includes("two-factor") || 
+          errorMessage.includes("authentication code")) {
         setShowTwoFactor(true);
         setError("Please enter your 2FA code");
       } else {
