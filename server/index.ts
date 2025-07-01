@@ -3,25 +3,34 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 // Load environment variables from .env file in development
-if (process.env.NODE_ENV !== 'production') {
-  const fs = await import('fs');
-  const path = await import('path');
-  
-  const envPath = path.resolve('.env');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    envContent.split('\n').forEach(line => {
-      const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
-        const value = valueParts.join('=').trim();
-        if (value && !process.env[key]) {
-          process.env[key] = value;
-        }
+function loadEnvironmentVariables() {
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      const envPath = path.resolve('.env');
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        envContent.split('\n').forEach(line => {
+          const [key, ...valueParts] = line.split('=');
+          if (key && valueParts.length > 0) {
+            const value = valueParts.join('=').trim();
+            if (value && !process.env[key]) {
+              process.env[key] = value;
+            }
+          }
+        });
+        console.log('✓ Environment variables loaded from .env file');
       }
-    });
-    console.log('✓ Environment variables loaded from .env file');
+    } catch (error) {
+      console.warn('Could not load .env file:', error);
+    }
   }
 }
+
+// Load environment variables immediately
+loadEnvironmentVariables();
 
 const app = express();
 

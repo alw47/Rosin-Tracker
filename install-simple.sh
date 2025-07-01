@@ -806,7 +806,9 @@ else
                 print_error "Service status:"
                 sudo systemctl status rosin-tracker --no-pager
                 print_error "Recent logs:"
-                sudo journalctl -u rosin-tracker --no-pager -n 20
+                sudo journalctl -u rosin-tracker --no-pager -n 30
+                print_error "Detailed application logs:"
+                sudo journalctl -u rosin-tracker --no-pager -n 50 -o cat
                 exit 1
             fi
         fi
