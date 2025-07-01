@@ -614,6 +614,21 @@ if [ ! -f "$CURRENT_DIR/package.json" ]; then
     exit 1
 fi
 
+# Build application before creating service
+print_status "Building application..."
+if ! npm run build; then
+    print_error "Failed to build application"
+    exit 1
+fi
+
+# Verify build was successful
+if [ ! -f "dist/index.js" ]; then
+    print_error "Build failed - dist/index.js not found"
+    exit 1
+fi
+
+print_success "Application built successfully"
+
 # Create systemd service file with error checking
 print_status "Creating systemd service file..."
 
@@ -647,8 +662,7 @@ WorkingDirectory=$CURRENT_DIR
 Environment=NODE_ENV=production
 Environment=PATH=$PATH
 EnvironmentFile=$CURRENT_DIR/.env
-ExecStartPre=$NPM_PATH run build
-ExecStart=$NODE_PATH ./dist/index.js
+ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
