@@ -249,7 +249,9 @@ export function MicronBagInput({ value = [], onChange, className }: MicronBagInp
   };
 
   const selectFrequentSize = (size: string) => {
-    setNewBag({ ...newBag, size });
+    // Remove any units that might be in the display size for consistent input
+    const cleanSize = size.replace(/mm|"|inch|inches/gi, '').trim();
+    setNewBag({ ...newBag, size: cleanSize });
   };
 
   return (
