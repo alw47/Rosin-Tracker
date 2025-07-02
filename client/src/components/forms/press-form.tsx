@@ -49,7 +49,19 @@ export function PressForm({ onSuccess, initialData, editingBatch }: PressFormPro
       temperature: formData?.temperature || 90,
       pressure: formData?.pressure || undefined,
       pressSize: formData?.pressSize || undefined,
-      micronBags: formData?.micronBags || [],
+      micronBags: (() => {
+        const bags = formData?.micronBags;
+        if (Array.isArray(bags)) return bags;
+        if (typeof bags === 'string') {
+          try {
+            const parsed = JSON.parse(bags);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      })(),
       numberOfPresses: formData?.numberOfPresses || undefined,
       humidity: formData?.humidity || undefined,
       pressDuration: initialData?.pressDuration || undefined,
@@ -315,8 +327,11 @@ export function PressForm({ onSuccess, initialData, editingBatch }: PressFormPro
                       <Input 
                         type="number" 
                         placeholder="300" 
-                        {...field}
+                        value={field.value || ""}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />
@@ -428,7 +443,11 @@ export function PressForm({ onSuccess, initialData, editingBatch }: PressFormPro
                     <Textarea
                       placeholder="Additional notes about this press..."
                       rows={3}
-                      {...field}
+                      value={(field.value as string) || ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
                     />
                   </FormControl>
                   <FormMessage />
