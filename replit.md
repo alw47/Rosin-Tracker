@@ -254,6 +254,7 @@ Changelog:
 - July 1, 2025. SYSTEMD SERVICE RESTORATION: Restored systemd service configuration to match original working version - using hardcoded paths and manual build process instead of ExecStartPre
 - July 1, 2025. CRITICAL POST-BUILD FIX: Added missing Node.js compatibility fix from original script to replace import.meta.dirname with proper ES module path resolution
 - July 1, 2025. FINAL PRODUCTION STARTUP FIX: Applied comprehensive Node.js compatibility fixes to source files before building, resolving all import.meta.dirname undefined errors
+- July 2, 2025. BACKUP SYSTEM MODIFICATION: Modified backup and restore system to exclude curing reminders - now only includes rosin press batches and curing logs with pictures for essential data preservation
 ```
 
 ## User Preferences

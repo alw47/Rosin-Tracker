@@ -935,31 +935,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Backup routes
   app.get("/api/backup/export", requireAuth, async (req, res) => {
     try {
-      console.log("Backup export requested");
+      console.log("Backup export requested - rosin presses and curing logs only");
       
-      // Fetch all data (unlimited)
-      const [rosinPresses, curingLogs, curingReminders] = await Promise.all([
+      // Fetch only rosin presses and curing logs data
+      const [rosinPresses, curingLogs] = await Promise.all([
         storage.getAllRosinPresses(10000, 0), // Large limit to get all records
-        storage.getAllCuringLogs(10000, 0),    // Large limit to get all records
-        storage.getAllCuringReminders(10000, 0) // Large limit to get all records
+        storage.getAllCuringLogs(10000, 0)    // Large limit to get all records
       ]);
 
       // Create backup object with metadata
       const backup = {
         metadata: {
           exportDate: new Date().toISOString(),
-          version: "1.1",
+          version: "2.0",
           application: "Rosin Tracker",
+          description: "Backup includes rosin presses and curing logs with pictures only",
           recordCounts: {
             rosinPresses: rosinPresses.length,
-            curingLogs: curingLogs.length,
-            curingReminders: curingReminders.length
+            curingLogs: curingLogs.length
           }
         },
         data: {
           rosinPresses,
-          curingLogs,
-          curingReminders
+          curingLogs
         }
       };
 
@@ -991,7 +989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Backup file is not from Rosin Tracker" });
       }
       
-      const { rosinPresses = [], curingLogs = [], curingReminders = [] } = backup.data;
+      const { rosinPresses = [], curingLogs = [] } = backup.data;
       
       // Clear existing data if requested
       if (clearExisting) {
@@ -1048,46 +1046,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Import curing reminders and map batch IDs
-      const importedReminders = [];
-      for (const reminder of curingReminders) {
-        try {
-          // Remove the ID and map the batchId to the new ID
-          const { id, batchId, ...reminderData } = reminder;
-          const mappedPress = importedPresses.find(p => p.oldId === batchId);
-          
-          if (mappedPress) {
-            // Convert date strings to Date objects for database insertion
-            const processedData = {
-              ...reminderData,
-              batchId: mappedPress.newId,
-              scheduledFor: new Date(reminderData.scheduledFor),
-              completedAt: reminderData.completedAt ? new Date(reminderData.completedAt) : undefined,
-              recurringEndDate: reminderData.recurringEndDate ? new Date(reminderData.recurringEndDate) : undefined,
-            };
-            
-            // Remove any undefined fields before database insertion
-            Object.keys(processedData).forEach(key => {
-              if (processedData[key] === undefined) {
-                delete processedData[key];
-              }
-            });
-            
-            console.log("Processed reminder data:", processedData);
-            const imported = await storage.createCuringReminder(processedData);
-            importedReminders.push(imported);
-          }
-        } catch (error) {
-          console.error("Failed to import curing reminder:", error);
-        }
-      }
-      
       res.json({
         message: "Backup imported successfully",
         imported: {
           rosinPresses: importedPresses.length,
-          curingLogs: importedLogs.length,
-          curingReminders: importedReminders.length
+          curingLogs: importedLogs.length
         },
         cleared: clearExisting
       });

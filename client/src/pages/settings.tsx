@@ -256,7 +256,7 @@ export default function SettingsPage() {
     onSuccess: (data: any) => {
       toast({
         title: "Backup Imported",
-        description: `Successfully imported ${data.imported?.rosinPresses || 0} batches, ${data.imported?.curingLogs || 0} curing logs, and ${data.imported?.curingReminders || 0} reminders.`,
+        description: `Successfully imported ${data.imported?.rosinPresses || 0} batches and ${data.imported?.curingLogs || 0} curing logs with pictures.`,
       });
       // Invalidate all queries to refresh the data
       queryClient.invalidateQueries();
@@ -924,7 +924,7 @@ export default function SettingsPage() {
             <CardTitle>Data Backup</CardTitle>
           </div>
           <CardDescription>
-            Export all your rosin press data and images for backup or migration purposes.
+            Export your rosin press batches and curing logs with pictures for backup or migration purposes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -933,7 +933,7 @@ export default function SettingsPage() {
             <div className="space-y-1">
               <p className="font-medium">Export Complete Backup</p>
               <p className="text-sm text-muted-foreground">
-                Downloads a JSON file containing all batches, curing logs, reminders, and embedded images.
+                Downloads a JSON file containing all rosin press batches, curing logs, and embedded images.
               </p>
             </div>
             <Button 
