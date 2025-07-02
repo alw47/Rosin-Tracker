@@ -11,10 +11,11 @@ import { useUnits } from "@/contexts/units-context";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime, formatDuration, formatMicronBags } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, ArrowLeft, Thermometer, Timer, Droplets, TestTube, Percent, Weight, X, Calendar, Clock, Check, AlertCircle, MinusCircle } from "lucide-react";
+import { Plus, ArrowLeft, Thermometer, Timer, Droplets, TestTube, Percent, Weight, X, Calendar, Clock, Check, AlertCircle, MinusCircle, Edit } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import type { RosinPress, CuringLog, CuringReminder } from "@shared/schema";
+import { PressForm } from "@/components/forms/press-form";
 
 export default function BatchDetails() {
   const [, params] = useRoute("/batch/:id");
@@ -24,6 +25,7 @@ export default function BatchDetails() {
   const queryClient = useQueryClient();
   const [showCuringForm, setShowCuringForm] = useState(false);
   const [showReminderForm, setShowReminderForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   // Helper function to display value or N/A with icon
   const renderValueOrNA = (value: number | null | undefined, unit: string = "", decimals: number = 0) => {
@@ -172,19 +174,39 @@ export default function BatchDetails() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Link href="/batches">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Batches
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold">Batch #{batch.id}</h1>
-          <p className="text-lg text-gray-600">
-            {Array.isArray(batch.strain) ? batch.strain.join(" + ") : batch.strain} - {formatDate(batch.pressDate)}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Link href="/batches">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Batches
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Batch #{batch.id}</h1>
+            <p className="text-lg text-gray-600">
+              {Array.isArray(batch.strain) ? batch.strain.join(" + ") : batch.strain} - {formatDate(batch.pressDate)}
+            </p>
+          </div>
         </div>
+        <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+          <DialogTrigger asChild>
+            <Button>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Batch
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <PressForm 
+              editingBatch={batch}
+              onSuccess={() => {
+                setShowEditForm(false);
+                queryClient.invalidateQueries({ queryKey: [`/api/rosin-presses/${batchId}`] });
+                queryClient.invalidateQueries({ queryKey: ["/api/rosin-presses"] });
+              }} 
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

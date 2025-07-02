@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { insertRosinPressSchema, type InsertRosinPress } from "@shared/schema";
+import { insertRosinPressSchema, type InsertRosinPress, type RosinPress } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useUnits } from "@/contexts/units-context";
@@ -27,50 +27,67 @@ type FormData = z.infer<typeof formSchema>;
 interface PressFormProps {
   onSuccess?: () => void;
   initialData?: Partial<InsertRosinPress>;
+  editingBatch?: RosinPress;
 }
 
-export function PressForm({ onSuccess, initialData }: PressFormProps) {
+export function PressForm({ onSuccess, initialData, editingBatch }: PressFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { convertTemperature, convertWeight, convertPressure, getTemperatureUnit, getWeightUnit, getPressureUnit } = useUnits();
+  
+  const isEditMode = !!editingBatch;
+  const formData = editingBatch || initialData;
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      strain: Array.isArray(initialData?.strain) ? initialData.strain : (initialData?.strain ? [initialData.strain] : []),
-      startMaterial: initialData?.startMaterial || "",
-      startAmount: initialData?.startAmount || 0,
-      yieldAmount: initialData?.yieldAmount || 0,
-      yieldPercentage: initialData?.yieldPercentage || 0,
-      temperature: initialData?.temperature || 90,
-      pressure: initialData?.pressure || undefined,
-      pressSize: initialData?.pressSize || undefined,
-      micronBags: initialData?.micronBags || [],
-      numberOfPresses: initialData?.numberOfPresses || undefined,
-      humidity: initialData?.humidity || undefined,
+      strain: Array.isArray(formData?.strain) ? formData.strain : (formData?.strain ? [formData.strain] : []),
+      startMaterial: formData?.startMaterial || "",
+      startAmount: formData?.startAmount || 0,
+      yieldAmount: formData?.yieldAmount || 0,
+      yieldPercentage: formData?.yieldPercentage || 0,
+      temperature: formData?.temperature || 90,
+      pressure: formData?.pressure || undefined,
+      pressSize: formData?.pressSize || undefined,
+      micronBags: formData?.micronBags || [],
+      numberOfPresses: formData?.numberOfPresses || undefined,
+      humidity: formData?.humidity || undefined,
       pressDuration: initialData?.pressDuration || undefined,
       notes: initialData?.notes || "",
       pictures: initialData?.pictures || [],
     },
   });
 
-  const createPress = useMutation({
+  const savePress = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiRequest("POST", "/api/rosin-presses", data);
-      return response.json();
+      if (isEditMode && editingBatch) {
+        const response = await apiRequest("PUT", `/api/rosin-presses/${editingBatch.id}`, data);
+        return response.json();
+      } else {
+        const response = await apiRequest("POST", "/api/rosin-presses", data);
+        return response.json();
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rosin-presses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rosin-presses/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/statistics"] });
-      toast({ title: "Success", description: "Rosin press created successfully" });
-      form.reset();
+      if (isEditMode && editingBatch) {
+        queryClient.invalidateQueries({ queryKey: [`/api/rosin-presses/${editingBatch.id}`] });
+      }
+      toast({ 
+        title: "Success", 
+        description: isEditMode ? "Batch updated successfully" : "Rosin press created successfully" 
+      });
+      if (!isEditMode) {
+        form.reset();
+      }
       onSuccess?.();
     },
     onError: (error: any) => {
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to create rosin press",
+        description: error.message || (isEditMode ? "Failed to update batch" : "Failed to create rosin press"),
         variant: "destructive"
       });
     },
@@ -88,7 +105,7 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
     };
     
     console.log("Submitting data:", submissionData);
-    createPress.mutate(submissionData);
+    savePress.mutate(submissionData);
   };
 
   // Watch start amount and yield amount to calculate percentage
@@ -98,11 +115,21 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={(e) => {
-        console.log("Form submit event triggered");
-        form.handleSubmit(onSubmit)(e);
-      }} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">
+            {isEditMode ? `Edit Batch #${editingBatch?.id}` : "Create New Rosin Press"}
+          </h2>
+          <p className="text-gray-600 mt-2">
+            {isEditMode ? "Update the details for this batch" : "Record a new rosin pressing session"}
+          </p>
+        </div>
+        
+        <form onSubmit={(e) => {
+          console.log("Form submit event triggered");
+          form.handleSubmit(onSubmit)(e);
+        }} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic Information */}
           <Card>
             <CardHeader>
@@ -432,17 +459,18 @@ export function PressForm({ onSuccess, initialData }: PressFormProps) {
         <div className="flex justify-end space-x-3">
           <Button 
             type="submit" 
-            disabled={createPress.isPending}
+            disabled={savePress.isPending}
             onClick={() => {
               console.log("Submit button clicked");
               console.log("Form valid:", form.formState.isValid);
               console.log("Form errors:", form.formState.errors);
             }}
           >
-            {createPress.isPending ? "Saving..." : "Save Press"}
+            {savePress.isPending ? "Saving..." : (isEditMode ? "Update Batch" : "Save Press")}
           </Button>
         </div>
-      </form>
+        </form>
+      </div>
     </Form>
   );
 }
